@@ -1,4 +1,8 @@
-from fitcmp import VERSION
+import imp
+fc = open('./fitcmp')
+fitcmp = imp.load_source('fitcmp', './fitcmp')
+VERSION = fitcmp.VERSION
+
 import tarfile, os, glob, sys
 
 scriptpath = os.path.abspath(os.path.dirname(sys.argv[0]))
