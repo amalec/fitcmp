@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 **fitcmp.py** is written by Adrian Malec. This program is free software (MIT
 licensed).
 
@@ -77,3 +78,9 @@ I personally provide no guarantees or support outside those granted by the
 goodness of my heart.
 
 I hope you find it useful. Good luck. 
+=======
+fitcmp
+======
+
+VPFIT fort.13 comparison utility
+>>>>>>> 33a3ac2e7559117e462fa1d884e317886cb48d26
