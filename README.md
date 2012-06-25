@@ -45,13 +45,8 @@ You may be able to run the script with lower versions of these. Maybe not.
 
 # RUNNING FITCMP.PY
 
-You run the script by executing fitcmp.py as follows:
-
-python /path/to/the/script/fitcmp.py
-
-You may want to use a convenient alias (in this case in a .cshrc startup file)
-such as:
-alias fitcmp 'python /path/to/the/script/fitcmp.py' 
+You run the script by executing fitcmp (the main script). You may like to add
+its location to your $PATH.
 
 You must always run the script with an argument specifying the path of
 your vpfit executable. Creating an alias to your vpfit in your working 

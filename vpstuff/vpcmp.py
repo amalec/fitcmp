@@ -469,14 +469,10 @@ def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
 	else:
 		ax.plot(data['vbin'], data['datbin'], color=colour_config['data'])
 	ax.plot(data['vdat'], data['fitdat'], color=colour_config['fit_new'])
-	
-	for tv, tcom in zip(data['tv'], data['tcom']):
-		# new (at the bottom)
-		ax.plot([tv, tv], [1.05, 0.95], color=assignCompColor(comp, tcom-1, tick_config))
 		
 	# set view bounds
 	dax = ax.axis() # xmin, xmax, ymin, ymax
-	ymax = dax[3]
+	# ymax = dax[3]
 
 	if settings['flux_bottom'] == 1:
 		if (dax[2] >= 0.0):
@@ -496,7 +492,17 @@ def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
 		ymax = tmpmax
 		ax.yaxis.set_major_locator(FixedLocator([ymin, ymax]))
 	
+	TICK_OFFSET = 0.05
+	YMAX_OFFSET = 0.1
+	
+	ymax = 1.00 + YMAX_OFFSET*(1.0-ymin)
+	
 	ax.axis([dax[0], dax[1], ymin, ymax])
+	
+	
+	for tv, tcom in zip(data['tv'], data['tcom']):
+		# plot tick marks
+		ax.plot([tv, tv], [1.00 + 0.05*(ymax-ymin), 1.00 - 0.05*(ymax-ymin)], color=assignCompColor(comp, tcom-1, tick_config))
 	
 	ax.yaxis.set_minor_locator(FixedLocator([0.25, 0.5, 0.75]))
 	if settings['flux_bottom'] == 3:
