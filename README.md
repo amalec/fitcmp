@@ -42,10 +42,8 @@ The dependencies are as follows:
 * numpy 1.6.1
 
 You may be able to run the script with lower versions of these. Maybe not.
-Note that there appears to be an issue with the interactive mode of matplotlib
-for Mac OS X which may prevent the display of plots. The interactive mode is
-essential to the workflow of fitcmp.py, but you may try to comment out the
-ion() line in fitcmp.py. If you get it to work on OSX please let me know.
+
+# RUNNING FITCMP.PY
 
 You run the script by executing fitcmp.py as follows:
 
@@ -61,20 +59,25 @@ directory may be handy.
 
 Examples:
 
-fitcmp ./vpfit -o old_fort.13 -n fort.13
-fitcmp ./vpfit -n fort.13/initial4.fit
+* fitcmp ./vpfit -o old_fort.13 -n fort.13
+* fitcmp ./vpfit -n fort.13/initial4.fit
 
 Your vpfit must be correctly configured, including environmental paths such as
 ATOMDIR, VPFSETUP and VPFPLOTS. This script uses the ATOMDIR in your
 environment.
 
-I would appreciate your acknowledgement if you find this script useful, but
-it is of course not necessary. I would also be grateful if you sent me any 
-major changes or bug fixes, so I can implement them in my copy.
+# DOCUMENTATION
+
+Formal documentation is nonexistent, sorry. Most operations are
+self-explanatory and are listed, along with brief descriptions, by typing '?'
+at the input prompt.
+
+# SUPPORT
 
 Please report bugs and problems at https://github.com/amalec/fitcmp/
 I personally provide no guarantees or support outside those granted by the 
 goodness of my heart.
 
-I hope you find it useful. Good luck. 
-
+I would appreciate your acknowledgement if you find this script useful, but
+it is of course not necessary. I would also be grateful if you sent me any 
+major changes or bug fixes, so I can implement them in my copy.
