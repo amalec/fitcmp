@@ -298,6 +298,9 @@ def rft2Data(rft, wl_flag, data_flag, hist_step = True):
 def readColourConfig(config_file):
 	# TODO: check config file for errors
 	config = RawConfigParser()
+	if not isfile(config_file):
+		print "Could not open colour config file = %s" % config_file
+		return
 	config.read(config_file)
 	colour_config = {}
 	tick_config = []

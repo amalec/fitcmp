@@ -17,8 +17,7 @@ from vpstuff.termcon import TerminalController, ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
-
-VERSION = 0.86
+VERSION = 0.87
 
 term = TerminalController()
 
@@ -31,6 +30,7 @@ def main():
 	parser = OptionParser(usage=usage, version=ver)
 	parser.add_option("-o", "--oldf13", dest="oldf", help="Old fort.13 file (optional)", default=False)
 	parser.add_option("-n", "--newf13", dest="newf", help="New fort.13 file (fort.13 by default)", default="fort.13")
+	parser.add_option("--nonfancy", dest="nonfancy", action="store_true", default=False, help="Disable fancy loading visuals")
     # parser.add_option("--vpfix1", dest="vpfix1", help="Fixes input issue with some versions of VPFIT", action="store_true", default=False)
 	
 	(options, args) = parser.parse_args()
@@ -40,7 +40,7 @@ def main():
 		sys.exit()
 	
     # vppath, oldf, newf, vpfix1 = args[0], options.oldf, options.newf, options.vpfix1
-	vppath, oldf, newf, vpfix1 = args[0], options.oldf, options.newf, False
+	vppath, oldf, newf, vpfix1, nf = args[0], options.oldf, options.newf, False, options.nonfancy
 	
 	def vpfix(n): # strange way of doing it, but may be handy later on, or alternatively I'll rewrite the fort.17 functions to automatically detect the vpfit version
 		if n == 1:
@@ -58,7 +58,7 @@ def main():
 		print "Old fort.13 file: %s NOT FOUND" % newf
 		sys.exit()
 	
-	rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix)
+	rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix, nonfancy = nf)
 	
 	colour_config, tick_config = readColourConfig(scriptpath + '/colours.cfg')
 	
@@ -107,9 +107,9 @@ def main():
 					while 1:
 						try:
 							if autonew:
-								rftList_new, c_new = reloadAllFits(newf, rftList_new, vppath, vpfix, silent = True)
+								rftList_new, c_new = reloadAllFits(newf, rftList_new, vppath, vpfix, nonfancy = nf, silent = True)
 							if autoold:
-								rftList_old, c_old = reloadAllFits(oldf, rftList_old, vppath, vpfix, silent = True)
+								rftList_old, c_old = reloadAllFits(oldf, rftList_old, vppath, vpfix, nonfancy = nf, silent = True)
 							showMultiPlots(fids, rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings)
 						except KeyboardInterrupt:
 							print termWarn("[Exiting autoreload mode]")
@@ -121,7 +121,7 @@ def main():
 						continue
 					else:
 						# print vcmd[0]
-						rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix)
+						rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix, nonfancy = nf)
 						if vcmd[0][0] == 'n':
 							rftList, comp = rftList_new, c_new
 						else:
@@ -182,19 +182,19 @@ def main():
 				elif s[0] == 'r':
 					reloadmultifigs = True
 					if len(s) == 1:
-						rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix)
+						rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix, nonfancy = nf)
 					elif s == 'rc':
-						rftList_old, c_old, rftList_new, c_new = reloadCFits(fids[-1][1], oldf, rftList_old, newf, rftList_new, vppath, vpfix)
+						rftList_old, c_old, rftList_new, c_new = reloadCFits(fids[-1][1], oldf, rftList_old, newf, rftList_new, vppath, vpfix, nonfancy = nf)
 						reloadmultifigs = False
 					elif s == 'rn':
-						rftList_new, c_new = reloadAllFits(newf, rftList_new, vppath, vpfix)
+						rftList_new, c_new = reloadAllFits(newf, rftList_new, vppath, vpfix, nonfancy = nf)
 					elif s == 'ro':
-						rftList_old, c_old = reloadAllFits(oldf, rftList_old, vppath, vpfix)
+						rftList_old, c_old = reloadAllFits(oldf, rftList_old, vppath, vpfix, nonfancy = nf)
 					elif s == 'rcn':
-						rftList_new, c_new = reloadFit(fids[-1][1], newf, rftList_new, vppath, vpfix)
+						rftList_new, c_new = reloadFit(fids[-1][1], newf, rftList_new, vppath, vpfix, nonfancy = nf)
 						reloadmultifigs = False
 					elif s == 'rco':
-						rftList_old, c_old = reloadFit(fids[-1][1], oldf, rftList_old, vppath, vpfix)
+						rftList_old, c_old = reloadFit(fids[-1][1], oldf, rftList_old, vppath, vpfix, nonfancy = nf)
 						reloadmultifigs = False
 					# else:
 					# 	try:
@@ -342,31 +342,41 @@ def reloadOneFit(rfid, f13, rftList, vppath, vpfix, pr = None):
 	rftList[rfid-1][RFT_F], rftList[rfid-1][RFT_T] = vpf17ReadAll(f13, vppath, len(tmpRList), vpfix, pr, rfid)[0]
 	return rftList, c
 
-def reloadFit(rfid, f13, rftList, vppath, vpfix, silent = False):
-	if silent:
+def reloadFit(rfid, f13, rftList, vppath, vpfix, nonfancy = False, silent = False):
+	if silent or nonfancy:
 		pr = None
 	else:
 		pr = ProgressWrapper(term, 'Reloading data for fit %d' % (rfid), PR_F13READ+PR_F17GENERATE+PR_F17READ)
 	rftList, c = reloadOneFit(rfid, f13, rftList, vppath, vpfix, pr)
-	if not silent:
+	if not (silent or nonfancy):
 		pr.clear()
+	if nonfancy:
+		print term.render('${GREEN}${BOLD}Reloading data for fit %d...${NORMAL}' % (rfid))
 	return rftList, c
 
-def reloadCFits(rfid, oldf, rftList_old, newf, rftList_new, vppath, vpfix):
-	pr = ProgressWrapper(term, 'Reloading old and new data for fit %d' % (rfid), (PR_F13READ+PR_F17GENERATE+PR_F17READ)*2)
+def reloadCFits(rfid, oldf, rftList_old, newf, rftList_new, vppath, vpfix, nonfancy = False):
+	if nonfancy:
+		pr = None
+	else:
+		pr = ProgressWrapper(term, 'Reloading old and new data for fit %d' % (rfid), (PR_F13READ+PR_F17GENERATE+PR_F17READ)*2)
 	rftList_old, c_old = reloadOneFit(rfid, oldf, rftList_old, vppath, vpfix, pr)
 	rftList_new, c_new = reloadOneFit(rfid, newf, rftList_new, vppath, vpfix, pr)
-	pr.clear()
+	if not nonfancy:
+		pr.clear()
+	if nonfancy:
+		print term.render('${GREEN}${BOLD}Reloading old and new data for fit %d...${NORMAL}' % (rfid))
 	return rftList_old, c_old, rftList_new, c_new
 
-def reloadAllFits(f, rftList, vppath, vpfix, silent = False):
-	if silent:
+def reloadAllFits(f, rftList, vppath, vpfix, nonfancy = False, silent = False):
+	if silent or nonfancy:
 		pr = None
 	else:
 		pr = ProgressWrapper(term, 'Retrieving data for all fits', (PR_F13READ+PR_F17GENERATE+PR_F17READ))
 	rftList, c = vpf17AutomateAll(f, vppath, vpfix, pr)
-	if not silent:
+	if not (silent or nonfancy):
 		pr.clear()
+	if nonfancy:
+		print term.render('${GREEN}${BOLD}Retrieving data for all fits...${NORMAL}')
 	return rftList, c
 
 def selLines(oldf, newf, rft_old, rft_new, c_old, c_new):
@@ -382,8 +392,11 @@ def getLines(rft, c):
 	for i in range(len(sl)):
 		print ljust("<%d>" % (sl[i][1]+1), 9) + sl[i][0]
 
-def readAllf17(oldf, newf, vppath, vpfix):
-	pr = ProgressWrapper(term, 'Retrieving data for all fits', (PR_F13READ+PR_F17GENERATE+PR_F17READ)*2)
+def readAllf17(oldf, newf, vppath, vpfix, nonfancy = False):
+	if nonfancy:
+		pr = None
+	else:
+		pr = ProgressWrapper(term, 'Retrieving data for all fits', (PR_F13READ+PR_F17GENERATE+PR_F17READ)*2)
 	
 	#print "--- Reading %s and retrieving fort.17 data for all fits..." % oldf
 	#print "---"
@@ -395,7 +408,11 @@ def readAllf17(oldf, newf, vppath, vpfix):
 	
 	#print "--- Done."
 	
-	pr.clear()
+	if not nonfancy:
+		pr.clear()
+		
+	if nonfancy:
+		print term.render('${GREEN}${BOLD}Retrieving data for all fits...${NORMAL}')
 	
 	return rftList_old, c_old, rftList_new, c_new
 
