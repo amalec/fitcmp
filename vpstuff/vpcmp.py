@@ -363,7 +363,8 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		#######################################################
 		# extract data and plot it
 		
-		p.close('all')
+		if not saveFile:
+			p.close('all')
 		pdpi = rcParams['figure.dpi']
 		fig, ax = p.subplots(len(found_lines)+1, 1, sharex=True, figsize=(float(settings['vplot_width'])/pdpi, float(settings['vplot_height'])/pdpi)) #default: 8*80, 13*80
 		fig.canvas.set_window_title('CRS + Velocity stack')
@@ -403,8 +404,6 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		for a in ax[:1]:
 			hideXLabels(a)
 		ax[-1].set_xlabel('Velocity (km/s) [z = %.7f]' % found_lines[0][1])
-		
-		
 		
 		if vlow != None and vhigh != None:
 			ax[-1].set_xlim(vlow, vhigh)
@@ -447,9 +446,10 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		# ax[0].plot(wldat_old, res_old, c=colour_config['res_zero_one'], linestyle='--')
 		ax[0].plot(crs_vel, crs_res, c=colour_config['residual'])
 		
-		if (saveFile != ''):
+		if saveFile:
 			print "Saving velocity stack plot to %s" % (saveFile)
-			p.savefig(saveFile)
+			# p.savefig(saveFile)
+			p.close()
 		else:
 			p.ioff()
 			print "[Close display window to continue]"

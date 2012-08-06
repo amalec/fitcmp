@@ -117,7 +117,7 @@ def main():
 							print termWarn("[Exiting autoreload mode]")
 							break
 				elif s[0] == 'v':
-					vcmd = re.findall("v(n|o)[\s^\n]*/[\s^\n]*(([a-zA-Z]{1,2})([\s^\n]*-[\s^\n]*([a-zA-Z0-9\s^\n,]+))?)([\s^\n]*/[\s^\n]*([+-]?[0-9]*\.?[0-9]+)[\s^\n]*,[\s^\n]*([+-]?[0-9]*\.?[0-9]+))?[\s^\n]*([\s^\n]*/[\s^\n]*([\\.a-zA-Z0-9_-]+))[\s^\n]*", s)
+					vcmd = re.findall("v(n|o)[\s^\n]*/[\s^\n]*(([a-zA-Z]{1,2})([\s^\n]*-[\s^\n]*([a-zA-Z0-9\s^\n,]+))?)([\s^\n]*/[\s^\n]*([+-]?[0-9]*\.?[0-9]+)[\s^\n]*,[\s^\n]*([+-]?[0-9]*\.?[0-9]+))?[\s^\n]*([\s^\n]*/[\s^\n]*([\\.a-zA-Z0-9_-]+))?[\s^\n]*", s)
 					if len(vcmd) == 0:
 						print "Invalid 'v' command"
 						continue
