@@ -9,6 +9,7 @@ from ConfigParser import RawConfigParser
 from vpstuff.constants import C
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.widgets import MultiCursor
+from matplotlib import rcParams
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -312,7 +313,7 @@ def readColourConfig(config_file):
 	return colour_config, tick_config
 
 # TODO: Maybe eventually support stacked common-velocity display
-def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings, splist, vlow = None, vhigh = None, cursor_on = False):
+def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings, splist, vlow = None, vhigh = None, cursor_on = False, saveFile = None):
 	sel_comps = []
 	for c in comp:
 		lzl = re.findall("^[\s^\n]*([\.\w\* <>\?]+?)[\s^\n]+([0-9]*\.?[0-9]+)([a-z]{0,2})?([A-Z%]{0,2})?[\s^\n]+([0-9]*\.?[0-9]+)([a-z]{0,2})?([A-Z%]{0,2})?[\s^\n]+", c[C_L])
@@ -363,7 +364,8 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		# extract data and plot it
 		
 		p.close('all')
-		fig, ax = p.subplots(len(found_lines)+1, 1, sharex=True, figsize=(8,13))
+		pdpi = rcParams['figure.dpi']
+		fig, ax = p.subplots(len(found_lines)+1, 1, sharex=True, figsize=(float(settings['vplot_width'])/pdpi, float(settings['vplot_height'])/pdpi)) #default: 8*80, 13*80
 		fig.canvas.set_window_title('CRS + Velocity stack')
 		
 		vall = []
@@ -448,6 +450,9 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		
 		
 		p.ioff()
+		if (saveFile != ''):
+			print "Saving velocity stack plot to %s" % (saveFile)
+			p.savefig(saveFile)
 		print "[Close display window to continue]"
 		p.show()
 		p.ion()
@@ -575,8 +580,8 @@ def plotData(rft_old, rft_new, axes, settings, colour_config):
 
 def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, figureid = 1, show = True, saveFile = ''):
 	assert(len(rft_old) == len(rft_new))
-
-	fig = p.figure(figureid, figsize=(float(settings['plot_width'])/80., float(settings['plot_height'])/80.), dpi = 80)
+	pdpi = rcParams['figure.dpi']
+	fig = p.figure(figureid, figsize=(float(settings['plot_width'])/pdpi, float(settings['plot_height'])/pdpi))
 	fig.canvas.set_window_title('Fit comparison %i' % (figureid))
 	p.clf()
 	# fig.canvas.flush_events()

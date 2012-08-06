@@ -61,6 +61,13 @@ Your vpfit must be correctly configured, including environmental paths such as
 ATOMDIR, VPFSETUP and VPFPLOTS. This script uses the ATOMDIR in your
 environment.
 
+Note that you may easily customise many aspects of the output plots by 
+creating a matplotlibrc file in your current working directory.
+See: http://matplotlib.sourceforge.net/users/customizing.html
+This may be useful for quickly creating figures for publications or 
+presentations. In this case, experiment with figure.dpi as your starting
+point.
+
 # DOCUMENTATION
 
 Formal documentation is nonexistent, sorry. Most operations are

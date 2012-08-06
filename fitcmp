@@ -11,6 +11,8 @@ from optparse import OptionParser
 from matplotlib import use as useGUI
 useGUI('TkAgg')
 
+
+
 from vpstuff.vpcmp import *
 from vpstuff.vpeval import vpeval
 from vpstuff.termcon import TerminalController, ProgressWrapper
@@ -63,7 +65,7 @@ def main():
 	colour_config, tick_config = readColourConfig(scriptpath + '/colours.cfg')
 	
 	settings = {'plot_type': 1, 'flux_bottom': 1, 'tick_type': 1, 'group_delta': 0.07,
-	            'tick_label': 1, 'plot_width': 650, 'plot_height': 490}
+	            'tick_label': 1, 'plot_width': 650, 'plot_height': 490, 'vplot_width': 640, 'vplot_height': 1040}
 	
 	# from: http://docs.python.org/library/readline.html
 	histfile = os.path.join(os.path.expanduser("~"), ".f13cmphist")
@@ -115,7 +117,7 @@ def main():
 							print termWarn("[Exiting autoreload mode]")
 							break
 				elif s[0] == 'v':
-					vcmd = re.findall("v(n|o)[\s^\n]*/[\s^\n]*(([a-zA-Z]{1,2})([\s^\n]*-[\s^\n]*([a-zA-Z0-9\s^\n,]+))?)([\s^\n]*/[\s^\n]*([+-]?[0-9]*\.?[0-9]+)[\s^\n]*,[\s^\n]*([+-]?[0-9]*\.?[0-9]+))?[\s^\n]*", s)
+					vcmd = re.findall("v(n|o)[\s^\n]*/[\s^\n]*(([a-zA-Z]{1,2})([\s^\n]*-[\s^\n]*([a-zA-Z0-9\s^\n,]+))?)([\s^\n]*/[\s^\n]*([+-]?[0-9]*\.?[0-9]+)[\s^\n]*,[\s^\n]*([+-]?[0-9]*\.?[0-9]+))?[\s^\n]*([\s^\n]*/[\s^\n]*([\\.a-zA-Z0-9_-]+))[\s^\n]*", s)
 					if len(vcmd) == 0:
 						print "Invalid 'v' command"
 						continue
@@ -140,9 +142,13 @@ def main():
 							splist = [spl.strip() for spl in splist]
 						else:
 							splist = []
+						if vcmd[0][9] != '':
+							fname = vcmd[0][9]
+						else:
+							fname = None
 							# print splist
 				
-					showStackPlot(tiedz_lbl, rftList, comp, colour_config, tick_config, settings, splist, vlow = vlow, vhigh = vhigh, cursor_on = True)
+					showStackPlot(tiedz_lbl, rftList, comp, colour_config, tick_config, settings, splist, vlow = vlow, vhigh = vhigh, cursor_on = True, saveFile = fname)
 				elif s[0:2] == 'e/':
 					vpeval(s[2:])
 				elif s == 'n':
@@ -252,6 +258,28 @@ def main():
 							for fid in fids:
 								close(fid[0])
 							showMultiPlots(fids, rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings)
+						elif opt_name == 'vplot_width' or opt_name == 'vpw':
+							try:
+								opt_value = int(opt_value)
+								if opt_value < 1 or opt_value == None:
+									raise ValueError
+							except ValueError:
+								print "Invalid setting for vplot_width option"
+								continue
+							settings['vplot_width'] = opt_value
+							for fid in fids:
+								close(fid[0])
+						elif opt_name == 'vplot_height' or opt_name == 'vph':
+							try:
+								opt_value = int(opt_value)
+								if opt_value < 1 or opt_value == None:
+									raise ValueError
+							except ValueError:
+								print "Invalid setting for vplot_height option"
+								continue
+							settings['vplot_height'] = opt_value
+							for fid in fids:
+								close(fid[0])
 						elif opt_name == 'flux_bottom' or opt_name == 'fb':
 							try:
 								opt_value = int(opt_value)
@@ -432,6 +460,8 @@ def selOptionHelp():
 	print          "                    5              data err contour, fit line"
 	print          " plot_width (pw)    650*           plot width, in pixels"
 	print          " plot_height (ph)   490*           plot height, in pixels"
+	print          " vplot_width (vpw)  640*           as above, for velocity stack plot"
+	print          " vplot_height (vph) 1040*          "
 	print          " flux_bottom (fb)   1*             bottom flux limit is 0"
 	print          "                    2              bottom flux limit is min(data or fit) rounded"
 	print          "                    3              bottom flux limit is min(data or fit)"
@@ -439,7 +469,7 @@ def selOptionHelp():
 	print          "                    2              group fine/isotopic structure lines"
 	print          " tick_label (tl)    1*             smart z label (if available), IDs"
 	print          "                    2              IDs only"
-	print          " group_delta (gd)   0.07*          grouping delta for the above option in Angstroms"
+	print          " group_delta (gd)   0.07*          grouping delta for tt option 2 in Angstroms"
 	print          " * = default setting"
 
 def selHelp():
@@ -457,7 +487,8 @@ def selHelp():
 	print termBold(" rc[n,o]") + "                    - Reload all fort.17 data for new/old fort.13, current region only"
 	print termBold(" a[n,o]") + "                     - Autoreload mode for new/old fort.13, current region"
 	print termBold(" v[n,o]/lbl[-sp,]/vmin,vmax") + " - Velocity stack plot around the lines with label lbl,"
-	print                "                              vmin/max are opt, sp is a comma-delimited subset of species"
+	print termBold(" /<f>") + "                         vmin/max are opt, sp is a comma-delimited subset of species,"
+	print                "                              <f> is an optional plot output file, extension determines filetype"
 	print termBold(" e/expr") + "                     - Evaluates expression, atom.dat lookup using e.g. {H I 1215}"
 	print termBold(" (e)ps/<f>") + "                  - Output all displays to sequentially named <f>_n.[e]ps files"
 	print termBold(" pdf/<f>") + "                    - Output all displays to sequentially named <f>_n.pdf files"
