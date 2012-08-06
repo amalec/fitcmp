@@ -488,7 +488,7 @@ def selHelp():
 	print termBold(" a[n,o]") + "                     - Autoreload mode for new/old fort.13, current region"
 	print termBold(" v[n,o]/lbl[-sp,]/vmin,vmax") + " - Velocity stack plot around the lines with label lbl,"
 	print termBold(" /<f>") + "                         vmin/max are opt, sp is a comma-delimited subset of species,"
-	print                "                              <f> is an optional plot output file, extension determines filetype"
+	print                "                              <f> is an optional outputfile, ext. determines filetype; no display"
 	print termBold(" e/expr") + "                     - Evaluates expression, atom.dat lookup using e.g. {H I 1215}"
 	print termBold(" (e)ps/<f>") + "                  - Output all displays to sequentially named <f>_n.[e]ps files"
 	print termBold(" pdf/<f>") + "                    - Output all displays to sequentially named <f>_n.pdf files"

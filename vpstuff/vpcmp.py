@@ -447,15 +447,14 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		# ax[0].plot(wldat_old, res_old, c=colour_config['res_zero_one'], linestyle='--')
 		ax[0].plot(crs_vel, crs_res, c=colour_config['residual'])
 		
-		
-		
-		p.ioff()
 		if (saveFile != ''):
 			print "Saving velocity stack plot to %s" % (saveFile)
 			p.savefig(saveFile)
-		print "[Close display window to continue]"
-		p.show()
-		p.ion()
+		else:
+			p.ioff()
+			print "[Close display window to continue]"
+			p.show()
+			p.ion()
 	else:
 		print "No lines found with label '%s'" % tiedz_lbl
 		return
