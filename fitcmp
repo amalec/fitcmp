@@ -19,7 +19,7 @@ from vpstuff.termcon import TerminalController, ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
-VERSION = 0.87
+VERSION = 0.88
 
 term = TerminalController()
 
@@ -65,7 +65,8 @@ def main():
 	colour_config, tick_config = readColourConfig(scriptpath + '/colours.cfg')
 	
 	settings = {'plot_type': 1, 'flux_bottom': 1, 'tick_type': 1, 'group_delta': 0.07,
-	            'tick_label': 1, 'plot_width': 650, 'plot_height': 490, 'vplot_width': 640, 'vplot_height': 1040}
+	            'tick_label': 1, 'plot_width': 650, 'plot_height': 490, 'vplot_width': 640, 'vplot_height': 1040,
+	            'vel_res': 1, 'crs_display': 1}
 	
 	# from: http://docs.python.org/library/readline.html
 	histfile = os.path.join(os.path.expanduser("~"), ".f13cmphist")
@@ -320,6 +321,24 @@ def main():
 								continue
 							settings['tick_label'] = opt_value
 							showMultiPlots(fids, rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings)
+						elif opt_name == 'vel_res' or opt_name == 'vr':
+							try:
+								opt_value = int(opt_value)
+								if opt_value < 1 or opt_value > 2 or opt_value == None:
+									raise ValueError
+							except ValueError:
+								print "Invalid setting for vel_res option"
+								continue
+							settings['vel_res'] = opt_value
+						elif opt_name == 'crs_display' or opt_name == 'cd':
+							try:
+								opt_value = int(opt_value)
+								if opt_value < 1 or opt_value > 2 or opt_value == None:
+									raise ValueError
+							except ValueError:
+								print "Invalid setting for crs_display option"
+								continue
+							settings['crs_display'] = opt_value
 						else:
 							selOptionHelp()
 					else:
@@ -470,6 +489,10 @@ def selOptionHelp():
 	print          " tick_label (tl)    1*             smart z label (if available), IDs"
 	print          "                    2              IDs only"
 	print          " group_delta (gd)   0.07*          grouping delta for tt option 2 in Angstroms"
+	print          " vel_res (vr)       1*             don't show residuals in velocity stack plot"
+	print          "                    2              display individual residuals"
+	print          " crs_display (cd)   1*             show CRS in velicity stack plot"
+	print          "                    2              turn off CRS"
 	print          " * = default setting"
 
 def selHelp():

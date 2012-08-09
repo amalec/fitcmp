@@ -314,6 +314,13 @@ def readColourConfig(config_file):
 
 # TODO: Maybe eventually support stacked common-velocity display
 def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings, splist, vlow = None, vhigh = None, cursor_on = False, saveFile = None):
+	if settings['crs_display'] == 1:
+		addplot = 1
+		crsplus = 'CRS + '
+	else:
+		addplot = 0
+		crsplus = ''
+	
 	sel_comps = []
 	for c in comp:
 		lzl = re.findall("^[\s^\n]*([\.\w\* <>\?]+?)[\s^\n]+([0-9]*\.?[0-9]+)([a-z]{0,2})?([A-Z%]{0,2})?[\s^\n]+([0-9]*\.?[0-9]+)([a-z]{0,2})?([A-Z%]{0,2})?[\s^\n]+", c[C_L])
@@ -366,8 +373,9 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		if not saveFile:
 			p.close('all')
 		pdpi = rcParams['figure.dpi']
-		fig, ax = p.subplots(len(found_lines)+1, 1, sharex=True, figsize=(float(settings['vplot_width'])/pdpi, float(settings['vplot_height'])/pdpi)) #default: 8*80, 13*80
-		fig.canvas.set_window_title('CRS + Velocity stack')
+		
+		fig, ax = p.subplots(len(found_lines)+addplot, 1, sharex=True, figsize=(float(settings['vplot_width'])/pdpi, float(settings['vplot_height'])/pdpi)) #default: 8*80, 13*80
+		fig.canvas.set_window_title(crsplus + 'Velocity stack')
 		
 		vall = []
 		
@@ -392,8 +400,8 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 			
 			vdata = {'vel_raw': vel_raw, 'dat_raw': dat_raw, 'fitdat_raw': fitdat_raw, 'vbin': vbin, 'vdat': vdat, 'tv': tv, 'datbin': datbin, 'daterr': daterr, 'fitdat': fitdat, 'tcom': tcom, 'tsp': tsp, 'vdelta': vdelta}
 			vall.append(vdata)
-			velocityPlot(ax[i+1], vdata, comp, colour_config, tick_config, settings)
-			ax[i+1].set_ylabel("%s %i" % (fl[0], int(fl[2])), stretch='extra-condensed')
+			velocityPlot(ax[i+addplot], vdata, comp, colour_config, tick_config, settings)
+			ax[i+addplot].set_ylabel("%s %i" % (fl[0], int(fl[2])), stretch='extra-condensed')
 		
 		minvel = min([min(vi['vel_raw']) for vi in vall])
 		maxvel = max([max(vi['vel_raw']) for vi in vall])
@@ -410,41 +418,42 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		else:
 			ax[-1].set_xlim(minvel, maxvel)
 		
-		# calculate the CRS, use the bluemost pixel as the reference value for the grid
+		if settings['crs_display'] == 1:
+			# calculate the CRS, use the bluemost pixel as the reference value for the grid
 		
-		# zerovel_indxs = [findClosest(0.0, vi['vel_raw']) for vi in vall]
-		# zerovel = [vall[i]['vel_raw'][zi] for i, zi in enumerate(zerovel_indxs)]
-		# print zerovel
-		vdel = sum([vi['vdelta'] for vi in vall])/len(vall)
+			# zerovel_indxs = [findClosest(0.0, vi['vel_raw']) for vi in vall]
+			# zerovel = [vall[i]['vel_raw'][zi] for i, zi in enumerate(zerovel_indxs)]
+			# print zerovel
+			vdel = sum([vi['vdelta'] for vi in vall])/len(vall)
 		
-		numbins = int((maxvel-minvel)/vdel)
-		crs_vel = [minvel+i*vdel for i in range(numbins)]
-		# crs_mask = []
-		crs_res = []
-		avgNoise = lambda l: sum(l)/sqrt(len(l))
-		# avgRes = lambda l: sum(l)/len(l)
+			numbins = int((maxvel-minvel)/vdel)
+			crs_vel = [minvel+i*vdel for i in range(numbins)]
+			# crs_mask = []
+			crs_res = []
+			avgNoise = lambda l: sum(l)/sqrt(len(l))
+			# avgRes = lambda l: sum(l)/len(l)
 		
-		for cv in crs_vel: 
-			vel_indxs = [findClosest(cv, vi['vel_raw']) for vi in vall] # find closest bin crs_vel <-> vel_raw stacks
+			for cv in crs_vel: 
+				vel_indxs = [findClosest(cv, vi['vel_raw']) for vi in vall] # find closest bin crs_vel <-> vel_raw stacks
 			
-			res_vals = []
-			for j, vel_i in enumerate(vel_indxs):
-				if abs(cv - vall[j]['vel_raw'][vel_i]) < vdel and vall[j]['daterr'][vel_i] > 0: # if within a bin of cv and a valid pixel
-					residual = calcResidual(vall[j]['dat_raw'][vel_i], vall[j]['fitdat_raw'][vel_i], vall[j]['daterr'][vel_i])
-					res_vals.append(residual)
+				res_vals = []
+				for j, vel_i in enumerate(vel_indxs):
+					if abs(cv - vall[j]['vel_raw'][vel_i]) < vdel and vall[j]['daterr'][vel_i] > 0: # if within a bin of cv and a valid pixel
+						residual = calcResidual(vall[j]['dat_raw'][vel_i], vall[j]['fitdat_raw'][vel_i], vall[j]['daterr'][vel_i])
+						res_vals.append(residual)
 			
-			if len(res_vals) > 0:
-				# crs_mask.append(1)
-				crs_res.append(avgNoise(res_vals))
-			else:
-				# crs_mask.append(0)
-				crs_res.append(NaN)
+				if len(res_vals) > 0:
+					# crs_mask.append(1)
+					crs_res.append(avgNoise(res_vals))
+				else:
+					# crs_mask.append(0)
+					crs_res.append(NaN)
 		
-		ax[0].axhline(1.0, c=colour_config['res_zero_one'])
-		ax[0].axhline(-1.0, c=colour_config['res_zero_one'])
+			ax[0].axhline(1.0, c=colour_config['res_zero_one'])
+			ax[0].axhline(-1.0, c=colour_config['res_zero_one'])
 
-		# ax[0].plot(wldat_old, res_old, c=colour_config['res_zero_one'], linestyle='--')
-		ax[0].plot(crs_vel, crs_res, c=colour_config['residual'])
+			# ax[0].plot(wldat_old, res_old, c=colour_config['res_zero_one'], linestyle='--')
+			ax[0].plot(crs_vel, crs_res, c=colour_config['residual'])
 		
 		if saveFile:
 			print "Saving velocity stack plot to %s" % (saveFile)
@@ -466,7 +475,6 @@ def findClosest(targetVal, valList):
 	return diffs.index(min(diffs))
 
 def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
-	settings['vel_res'] = 2 ##########
 	
 	ax.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
 	ax.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
