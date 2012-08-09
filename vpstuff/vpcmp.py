@@ -466,6 +466,8 @@ def findClosest(targetVal, valList):
 	return diffs.index(min(diffs))
 
 def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
+	settings['vel_res'] = 2 ##########
+	
 	ax.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
 	ax.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
 	
@@ -480,7 +482,7 @@ def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
 	# set view bounds
 	dax = ax.axis() # xmin, xmax, ymin, ymax
 	# ymax = dax[3]
-
+	
 	if settings['flux_bottom'] == 1:
 		if (dax[2] >= 0.0):
 			ymin = 0.0 - 0.1
@@ -499,17 +501,33 @@ def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
 		ymax = tmpmax
 		ax.yaxis.set_major_locator(FixedLocator([ymin, ymax]))
 	
+	if settings['vel_res'] == 2:
+		YMAX_OFFSET = 0.55
+		RESIDUAL_OFFSET = 0.3
+		RESIDUAL_SCALE = 0.05
+	else:
+		YMAX_OFFSET = 0.2
+	
 	TICK_OFFSET = 0.05
-	YMAX_OFFSET = 0.1
+	TICK_SCALE = 0.05
 	
 	ymax = 1.00 + YMAX_OFFSET*(1.0-ymin)
 	
 	ax.axis([dax[0], dax[1], ymin, ymax])
 	
+	if settings['vel_res'] == 2:
+		resy = 1.00 + RESIDUAL_OFFSET*(1.0-ymin)
 	
 	for tv, tcom in zip(data['tv'], data['tcom']):
 		# plot tick marks
-		ax.plot([tv, tv], [1.00 + 0.05*(ymax-ymin), 1.00 - 0.05*(ymax-ymin)], color=assignCompColor(comp, tcom-1, tick_config))
+		ax.plot([tv, tv], [1.00 + TICK_SCALE*(ymax-ymin), 1.00 - TICK_SCALE*(ymax-ymin)], color=assignCompColor(comp, tcom-1, tick_config))
+	
+	if settings['vel_res'] == 2:
+		ax.axhline(resy+RESIDUAL_SCALE*(ymax-ymin), c=colour_config['res_zero_one'])
+		ax.axhline(resy-RESIDUAL_SCALE*(ymax-ymin), c=colour_config['res_zero_one'])
+		residual = [calcResidual(data['dat_raw'][vel_i], data['fitdat_raw'][vel_i], data['daterr'][vel_i]) for vel_i in range(len(data['daterr']))]
+		proj_res = [r*RESIDUAL_SCALE*(ymax-ymin)+resy for r in residual] # plot coordinates projected residual
+		ax.plot(data['vdat'], proj_res, c=colour_config['residual'])
 	
 	ax.yaxis.set_minor_locator(FixedLocator([0.25, 0.5, 0.75]))
 	if settings['flux_bottom'] == 3:
@@ -527,7 +545,7 @@ def plotData(rft_old, rft_new, axes, settings, colour_config):
 	# wldat_new = fExtract(rft_new, F_WL)
 	# fitdat_old = fExtract(rft_old, F_FIT)
 	# fitdat_new = fExtract(rft_new, F_FIT)
-
+	
 	axes.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
 	axes.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
 	
