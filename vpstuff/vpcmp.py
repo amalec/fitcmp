@@ -448,7 +448,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		
 		if saveFile:
 			print "Saving velocity stack plot to %s" % (saveFile)
-			# p.savefig(saveFile)
+			p.savefig(saveFile)
 			p.close()
 		else:
 			p.ioff()
