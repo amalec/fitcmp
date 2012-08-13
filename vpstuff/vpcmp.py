@@ -903,7 +903,7 @@ def drawTicks(twl, tcom, tsp, pc, axes, config, settings, ttype): # type is one 
 def drawGroups(ingroups, pc, axes, config, settings, ttype, weighted = False):
 	if ttype == 'new':
 		# new (at the bottom)
-		if weigthed:
+		if weighted:
 			y0y1 = [1.0, 2.0]
 		else:
 			y0y1 = [1.0, 1.0, 2.0, 2.0]
