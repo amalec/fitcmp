@@ -903,24 +903,31 @@ def drawTicks(twl, tcom, tsp, pc, axes, config, settings, ttype): # type is one 
 def drawGroups(ingroups, pc, axes, config, settings, ttype, weighted = False):
 	if ttype == 'new':
 		# new (at the bottom)
-		y0y1 = [1.0, 1.0, 2.0, 2.0]
+		if weigthed:
+			y0y1 = [1.0, 2.0]
+		else:
+			y0y1 = [1.0, 1.0, 2.0, 2.0]
 		ytxt = 0.5
 	elif ttype == 'old':
 		# old (at the top)
-		y0y1 = [3.0, 3.0, 4.0, 4.0]
+		if weighted:
+			y0y1 = [3.0, 4.0]
+		else:
+			y0y1 = [3.0, 3.0, 4.0, 4.0]
 		ytxt = 2.4
 	for group in ingroups:
 		g_wl = [g[0] for g in group]
 		g_tcom = [g[1] for g in group]
 		g_tsp = [g[2] for g in group]
+		tcol = assignCompColor(pc, g_tcom[0]-1, config)
 		if weighted:
 			#                         species               approx_rest_wave
 			g_f = [float(find_line(   pc[g_tcom_i-1][0], g_wl_i/(float(pc[g_tcom_i-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
 			g_weighted_wl = sum([g_f_i * g_wl_i for g_f_i, g_wl_i in zip(g_f, g_wl)]) / sum(g_f)
-			drawTicks(g_wl, g_tcom, g_tsp, pc, axes, config, settings, ttype)
+			axes.plot([g_weighted_wl, g_weighted_wl], y0y1, color=tcol)
+			axes.text(g_weighted_wl, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
 		else:
 			gwl_min, gwl_max = min(g_wl), max(g_wl)
-			tcol = assignCompColor(pc, g_tcom[0]-1, config)
 			axes.fill([gwl_min, gwl_max, gwl_max, gwl_min], y0y1, color=tcol, alpha=0.6)
 			axes.text((gwl_min+gwl_max)/2.0, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
 

@@ -155,7 +155,7 @@ def parse_atom():
 		if p:
 			p0 = p[0]
 			pai = {'ion': p0[0], 'wv': p0[1], 'f': p0[3], 'gamma': p0[5], 'mass': p0[8], 'q': p0[11], 'linecopy': a}
-			print pai
+			# print pai
 			atomlst.append(pai)
 			
 	return atomlst
