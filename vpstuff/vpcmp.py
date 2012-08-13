@@ -915,7 +915,7 @@ def drawGroups(ingroups, pc, axes, config, settings, ttype, weighted = False):
 		g_tsp = [g[2] for g in group]
 		if weighted:
 			#                         species               approx_rest_wave
-			g_f = [float(find_line(   pc[g_tcom_i[0]-1][0], g_wl_i/(float(pc[g_tcom_i[0]-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
+			g_f = [float(find_line(   pc[g_tcom_i-1][0], g_wl_i/(float(pc[g_tcom_i-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
 			g_weighted_wl = sum([g_f_i * g_wl_i for g_f_i, g_wl_i in zip(g_f, g_wl)]) / sum(g_f)
 			drawTicks(g_wl, g_tcom, g_tsp, pc, axes, config, settings, ttype)
 		else:
