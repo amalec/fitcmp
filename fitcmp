@@ -11,15 +11,13 @@ from optparse import OptionParser
 from matplotlib import use as useGUI
 useGUI('TkAgg')
 
-
-
 from vpstuff.vpcmp import *
 from vpstuff.vpeval import vpeval
 from vpstuff.termcon import TerminalController, ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
-VERSION = 0.88
+VERSION = 0.89
 
 term = TerminalController()
 
@@ -294,7 +292,7 @@ def main():
 						elif opt_name == 'tick_type' or opt_name == 'tt':
 							try:
 								opt_value = int(opt_value)
-								if opt_value < 1 or opt_value > 2 or opt_value == None:
+								if opt_value < 1 or opt_value > 3 or opt_value == None:
 									raise ValueError
 							except ValueError:
 								print "Invalid setting for tick_type option"
@@ -486,6 +484,7 @@ def selOptionHelp():
 	print          "                    3              bottom flux limit is min(data or fit)"
 	print          " tick_type (tt)     1*             normal tick marks"
 	print          "                    2              group fine/isotopic structure lines"
+	print          "                    3              oscillator strength weighted wv's"
 	print          " tick_label (tl)    1*             smart z label (if available), IDs"
 	print          "                    2              IDs only"
 	print          " group_delta (gd)   0.07*          grouping delta for tt option 2 in Angstroms"

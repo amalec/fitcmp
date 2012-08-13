@@ -1,4 +1,5 @@
 from math import log
+import os, re
 
 def isNotString(thestring, stringlist):
 	for thisstring in stringlist:
@@ -124,3 +125,54 @@ def TnTn(n1, n2, n3, n4):
 	print an2
 	print an3
 	print an4
+
+def open_atom():
+	if not os.getenv('ATOMDIR'):
+		raise Exception("Could not open file $ATOMDIR")
+	afn = os.getenv('ATOMDIR')
+	if not os.path.isfile(afn):
+		raise Exception("Could not open file $ATOMDIR = %s" % afn)
+	try:
+		atom = open(afn).readlines()
+	except:
+		raise Exception("Could not open file $ATOMDIR = %s" % afn)
+	return atom
+
+def parse_atom():
+	atom = open_atom()
+	
+	s0p, s1p = "[\s^\n]*", "[\s^\n]+" # white space
+	ion = "([\.\w\* <>\?]+?)"         # species
+	elt = "([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)" # E float
+	# the format is ion lambda f gamma mass q comments
+	
+	#                 ion       wv        f         gamma     mass (optional)    q (optional)
+	reptrn = "^"+s0p  +ion+s1p  +elt+s1p  +elt+s1p  +elt+s1p  +'('+elt+s1p+')?'  +'('+elt+s1p+')?'
+	
+	atomlst = []
+	for a in atom:
+		p = re.findall(reptrn, a)
+		if p:
+			p0 = p[0]
+			pai = {'ion': p0[0], 'wv': p0[1], 'f': p0[3], 'gamma': p0[5], 'mass': p0[8], 'q': p0[11], 'linecopy': a}
+			print pai
+			atomlst.append(pai)
+			
+	return atomlst
+
+def find_line(species, approx_rest_wave):
+	atom = parse_atom()
+	
+	atom_sub_sp = [a for a in atom if a['ion'] == species]
+	if not atom_sub_sp:
+		raise Exception("Could not find line matching '%s %s' (no ion match) in atom.dat file" % (species, approx_rest_wave))
+	
+	deltawv = 9999999.0
+	dwv_i = None
+	for i, a in enumerate(atom_sub_sp):
+		cdwv = abs(float(a['wv']) - float(approx_rest_wave))
+		if deltawv > cdwv:
+			deltawv = cdwv
+			dwv_i = i
+	
+	return atom_sub_sp[dwv_i]

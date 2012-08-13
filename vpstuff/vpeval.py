@@ -3,7 +3,8 @@
 from math import *
 from string import strip
 import os, sys, re
-from vpstuff.ncol import ColumnDensity as N
+# from vpstuff.ncol import ColumnDensity as N
+from vphelper import open_atom
 
 # make a list of safe functions
 safe_list = ['math','acos', 'asin', 'atan', 'atan2', 'ceil', 
@@ -35,7 +36,7 @@ safe_dict['list'] = list
 safe_dict['map'] = map
 safe_dict['max'] = max
 safe_dict['min'] = min
-safe_dict['N'] = N
+# safe_dict['N'] = N
 safe_dict['oct'] = oct
 safe_dict['range'] = range
 safe_dict['reduce'] = reduce
@@ -67,15 +68,7 @@ def vpeval(eval_str):
 		print err
 
 def lookup_line(line_match):
-	if not os.getenv('ATOMDIR'):
-		raise Exception("Could not open file $ATOMDIR")
-	afn = os.getenv('ATOMDIR')
-	if not os.path.isfile(afn):
-		raise Exception("Could not open file $ATOMDIR = %s" % afn)
-	try:
-		atom = open(afn).readlines()
-	except:
-		raise Exception("Could not open file $ATOMDIR = %s" % afn)
+	atom = open_atom()
 	
 	species = line_match.group(1)
 	rest_wave = line_match.group(2)

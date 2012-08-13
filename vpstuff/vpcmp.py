@@ -10,6 +10,7 @@ from vpstuff.constants import C
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.widgets import MultiCursor
 from matplotlib import rcParams
+from vpstuff.vphelper import find_line
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -24,7 +25,7 @@ FIT_THRESH = 1.0e-99
 R_WL, R_WH, R_L = 0, 1, 2 # Fit region: low wavelength bound, high wavelength bound, line copy
 C_NAME, C_L = 0, 1 # Fit components: ion name, line copy
 F_WL, F_DATA, F_ERR, F_FIT = 0, 1, 2, 3 # Output fit: wavelength, data, error, fit data
-T_WL, T_SPEC, T_COM = 0, 1, 2 # Tick marks: wavelength, species no., component no.
+T_WL, T_SPEC, T_COM = 0, 1, 2 # Tick marks: wavelength, species no. (not reliable/random in vpfit10), component no.
 RFT_R, RFT_F, RFT_T = 0, 1, 2 # RFT: Region, Fit, Tick marks
 
 # relative estimated progress
@@ -842,6 +843,9 @@ def plotTicks(rft_old, rft_new, cmpList_old, cmpList_new, axes, settings, config
 	elif settings['tick_type'] == 2:
 		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, 'new')
 		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, 'old')
+	elif settings['tick_type'] == 3:
+		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, 'new', weighted = True)
+		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, 'old', weighted = True)
 	
 	taxis = axes.axis() # xmin, xmax, ymin, ymax
 	axes.axis([taxis[0], taxis[1], 0.0, 4.5])
@@ -896,7 +900,7 @@ def drawTicks(twl, tcom, tsp, pc, axes, config, settings, ttype): # type is one 
 		axes.plot([twl[i], twl[i]], y0y1, color=tcol)
 		axes.text(twl[i], ytxt, tickText(tcom[i]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[tcom[i]-1][17].strip('\n'))
 
-def drawGroups(ingroups, pc, axes, config, settings, ttype):
+def drawGroups(ingroups, pc, axes, config, settings, ttype, weighted = False):
 	if ttype == 'new':
 		# new (at the bottom)
 		y0y1 = [1.0, 1.0, 2.0, 2.0]
@@ -909,12 +913,18 @@ def drawGroups(ingroups, pc, axes, config, settings, ttype):
 		g_wl = [g[0] for g in group]
 		g_tcom = [g[1] for g in group]
 		g_tsp = [g[2] for g in group]
-		gwl_min, gwl_max = min(g_wl), max(g_wl)
-		tcol = assignCompColor(pc, g_tcom[0]-1, config)
-		axes.fill([gwl_min, gwl_max, gwl_max, gwl_min], y0y1, color=tcol, alpha=0.6)
-		axes.text((gwl_min+gwl_max)/2.0, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
+		if weighted:
+			#                         species               approx_rest_wave
+			g_f = [float(find_line(   pc[g_tcom_i[0]-1][0], g_wl_i/(float(pc[g_tcom_i[0]-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
+			g_weighted_wl = sum([g_f_i * g_wl_i for g_f_i, g_wl_i in zip(g_f, g_wl)]) / sum(g_f)
+			drawTicks(g_wl, g_tcom, g_tsp, pc, axes, config, settings, ttype)
+		else:
+			gwl_min, gwl_max = min(g_wl), max(g_wl)
+			tcol = assignCompColor(pc, g_tcom[0]-1, config)
+			axes.fill([gwl_min, gwl_max, gwl_max, gwl_min], y0y1, color=tcol, alpha=0.6)
+			axes.text((gwl_min+gwl_max)/2.0, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
 
-def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, ttype):
+def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, ttype, weighted = False):
 	groupdelta = settings['group_delta']
 	ingroups, notgroups = groupStructure(twl, tcom, tsp, pc, groupdelta)
 	if notgroups:
@@ -923,14 +933,14 @@ def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, ttype):
 		ng_tsp = [ng[2] for ng in notgroups]
 		drawTicks(ng_wl, ng_tcom, ng_tsp, pc, axes, config, settings, ttype)
 	if ingroups:
-		drawGroups(ingroups, pc, axes, config, settings, ttype)
+			drawGroups(ingroups, pc, axes, config, settings, ttype, weighted)
 
 def hideXLabels(axes):
 	""" http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg06932.html """
 	for label in axes.get_xticklabels():
 		label.set_visible(False)
 
-def onlySpaces(astring): # not very brilliant but works - ... seriously, what does this do again?
+def onlySpaces(astring): # not very brilliant but works - ... seriously, what does this do again? - appears to replace whitespace with spaces
 	line = astring.split()
 	r = ''
 	for l in line:	r += l + ' '
