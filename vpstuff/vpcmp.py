@@ -10,7 +10,7 @@ from vpstuff.constants import C
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.widgets import MultiCursor
 from matplotlib import rcParams
-from vpstuff.vphelper import find_line
+from vpstuff.vphelper import find_line, find_lines_byspecies
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -322,43 +322,28 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		addplot = 0
 		crsplus = ''
 	
+	pc = parseComps(comp)
 	sel_comps = []
-	for c in comp:
-		lzl = re.findall("^[\s^\n]*([\.\w\* <>\?]+?)[\s^\n]+([0-9]*\.?[0-9]+)([a-z]{0,2})?([A-Z%]{0,2})?[\s^\n]+([0-9]*\.?[0-9]+)([a-z]{0,2})?([A-Z%]{0,2})?[\s^\n]+", c[C_L])
-		if len(lzl) != 0:
-			lbl = lzl[0][5]+lzl[0][6]
-			species = lzl[0][0]
-			if lbl.lower() == tiedz_lbl.lower() and (species in splist or splist == []):
-				redshift = float(lzl[0][4])
-				sel_comps.append([species, redshift])
-	if len(sel_comps) != 0:
-		#  search atom.dat file 
-		if not os.getenv('ATOMDIR'):
-			print "Could not open file $ATOMDIR"
-			return
-		afn = os.getenv('ATOMDIR')
-		if not os.path.isfile(afn):
-			print "Could not open file $ATOMDIR = %s" % afn
-			return
-		try:
-			atom = open(afn).readlines()
-		except:
-			print "Could not open file $ATOMDIR = %s" % afn
-			return
-		
-		found_lines = []
-		
+	
+	for pci in pc:
+		lbl = pci[5]
+		species = pci[0]
+		if lbl.lower() == tiedz_lbl.lower() and (species in splist or splist == []):
+			redshift = float(pci[4])
+			sel_comps.append([species, redshift])
+	
+	found_lines = []
+	if sel_comps:
 		for sc in sel_comps:
-			for a in atom:
-				sr = re.findall("^[\s^\n]*(%s)[\s^\n]+([0-9]*\.?[0-9]+)" % re.escape(sc[0]), a)
-				if len(sr) != 0:
-					wv_rest = float(sr[0][1])
-					found_lines.append([sc[0], sc[1], wv_rest]) # species, redshift, rest wavelength
+			sp_lines = find_lines_byspecies(sc[0])
+			for sp in sp_lines:
+				found_lines.append([sc[0], sc[1], float(sp['wv'])]) # species, redshift, rest wavelength
 		
 		temp_fl = []
 		# effectively remove lines that don't fall into the fort.13 file regions, and identify regions where they do
 		for rindx, rft in enumerate(rft_all):
 			for fl in found_lines:
+				# print fl
 				wv_obs = fl[2]*(fl[1]+1.0)
 				if wv_obs <= rft[RFT_R][R_WH] and wv_obs >= rft[RFT_R][R_WL]:
 					temp_fl.append([fl[0], fl[1], fl[2], rindx]) # 0 species, 1 redshift, 2 rest wavelength, 3 region index
@@ -399,9 +384,9 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 			tv = [(w-wv_obs)/wv_obs*C/1000.0 for w in twl] # in km/s
 			vdelta = abs(vel_raw[0]-vel_raw[1])
 			
-			vdata = {'vel_raw': vel_raw, 'dat_raw': dat_raw, 'fitdat_raw': fitdat_raw, 'vbin': vbin, 'vdat': vdat, 'tv': tv, 'datbin': datbin, 'daterr': daterr, 'fitdat': fitdat, 'tcom': tcom, 'tsp': tsp, 'vdelta': vdelta}
+			vdata = {'vel_raw': vel_raw, 'dat_raw': dat_raw, 'fitdat_raw': fitdat_raw, 'vbin': vbin, 'vdat': vdat, 'tv': tv, 'datbin': datbin, 'daterr': daterr, 'fitdat': fitdat, 'twl': twl, 'tcom': tcom, 'tsp': tsp, 'vdelta': vdelta}
 			vall.append(vdata)
-			velocityPlot(ax[i+addplot], vdata, comp, colour_config, tick_config, settings)
+			velocityPlot(ax[i+addplot], vdata, pc, colour_config, tick_config, settings) ###### velocityPlot
 			ax[i+addplot].set_ylabel("%s %i" % (fl[0], int(fl[2])), stretch='extra-condensed')
 		
 		minvel = min([min(vi['vel_raw']) for vi in vall])
@@ -475,7 +460,7 @@ def findClosest(targetVal, valList):
 	diffs = [abs(x-targetVal) for x in valList]
 	return diffs.index(min(diffs))
 
-def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
+def velocityPlot(ax, data, pc, colour_config, tick_config, settings):
 	
 	ax.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
 	ax.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
@@ -527,9 +512,22 @@ def velocityPlot(ax, data, comp, colour_config, tick_config, settings):
 	if settings['vel_res'] == 2:
 		resy = 1.00 + RESIDUAL_OFFSET*(1.0-ymin)
 	
-	for tv, tcom in zip(data['tv'], data['tcom']):
-		# plot tick marks
-		ax.plot([tv, tv], [1.00 + TICK_SCALE*(ymax-ymin), 1.00 - TICK_SCALE*(ymax-ymin)], color=assignCompColor(comp, tcom-1, tick_config))
+	##
+	
+	# tick positioning
+	y0y1 = [1.00 + TICK_SCALE*(ymax-ymin), 1.00 - TICK_SCALE*(ymax-ymin)]
+	ytxt = None # don't plot text labels on velocity stack plot	
+	
+	if settings['tick_type'] == 1:
+		drawTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, tv = data['tv'])
+	elif settings['tick_type'] == 2:
+		drawGroupedTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, tv = data['tv'])
+	elif settings['tick_type'] == 3:
+		drawGroupedTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, tv = data['tv'], weighted = True)
+	
+	# for tv, tcom in zip(data['tv'], data['tcom']):
+	# 	# plot tick marks
+	# 	ax.plot([tv, tv], [1.00 + TICK_SCALE*(ymax-ymin), 1.00 - TICK_SCALE*(ymax-ymin)], color=assignCompColor(pc, tcom-1, tick_config))
 	
 	if settings['vel_res'] == 2:
 		ax.axhline(resy+RESIDUAL_SCALE*(ymax-ymin), c=colour_config['res_zero_one'])
@@ -824,28 +822,24 @@ def plotTicks(rft_old, rft_new, cmpList_old, cmpList_new, axes, settings, config
 	tcom_old = tExtract(rft_old, T_COM)
 	tsp_old = tExtract(rft_old, T_SPEC)
 	
-	# print twl_new
-	# print
-	# print tcom_new
-	# print 
-	# print tsp_new
-	# print 
-	# print cmpList_new
-	# print
-	# print parseComps(cmpList_new)
-	
 	pcn = parseComps(cmpList_new)
 	pco = parseComps(cmpList_old)
 	
+	# tick positioning
+	y0y1_new = [1.0, 2.0]
+	ytxt_new = 0.5
+	y0y1_old = [3.0, 4.0]
+	ytxt_old = 2.4
+	
 	if settings['tick_type'] == 1:
-		drawTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, 'new')
-		drawTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, 'old')
+		drawTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new)
+		drawTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old)
 	elif settings['tick_type'] == 2:
-		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, 'new')
-		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, 'old')
+		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new)
+		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old)
 	elif settings['tick_type'] == 3:
-		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, 'new', weighted = True)
-		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, 'old', weighted = True)
+		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new, weighted = True)
+		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old, weighted = True)
 	
 	taxis = axes.axis() # xmin, xmax, ymin, ymax
 	axes.axis([taxis[0], taxis[1], 0.0, 4.5])
@@ -886,61 +880,59 @@ def tickText(compid, pc, settings):
 		txt = str(compid+1)
 	return txt
 
-def drawTicks(twl, tcom, tsp, pc, axes, config, settings, ttype): # type is one of 'old', 'new' and in future 'velocity'
-	if ttype == 'new':
-		# new (at the bottom)
-		y0y1 = [1.0, 2.0]
-		ytxt = 0.5
-	elif ttype == 'old':
-		# old (at the top)
-		y0y1 = [3.0, 4.0]
-		ytxt = 2.4
+def drawTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, tv = None):
 	for i in range(len(twl)):
 		tcol = assignCompColor(pc, tcom[i]-1, config)
-		axes.plot([twl[i], twl[i]], y0y1, color=tcol)
-		axes.text(twl[i], ytxt, tickText(tcom[i]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[tcom[i]-1][17].strip('\n'))
+		if tv:
+			tx = tv # cheap trick, but won't work for groups which calculate things in rest wavelength
+		else:
+			tx = twl
+		axes.plot([tx[i], tx[i]], y0y1, color=tcol)
+		if ytxt:
+			axes.text(tx[i], ytxt, tickText(tcom[i]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[tcom[i]-1][17].strip('\n'))
 
-def drawGroups(ingroups, pc, axes, config, settings, ttype, weighted = False):
-	if ttype == 'new':
-		# new (at the bottom)
-		if weighted:
-			y0y1 = [1.0, 2.0]
-		else:
-			y0y1 = [1.0, 1.0, 2.0, 2.0]
-		ytxt = 0.5
-	elif ttype == 'old':
-		# old (at the top)
-		if weighted:
-			y0y1 = [3.0, 4.0]
-		else:
-			y0y1 = [3.0, 3.0, 4.0, 4.0]
-		ytxt = 2.4
-	for group in ingroups:
-		g_wl = [g[0] for g in group]
-		g_tcom = [g[1] for g in group]
-		g_tsp = [g[2] for g in group]
-		tcol = assignCompColor(pc, g_tcom[0]-1, config)
-		if weighted:
-			#                         species               approx_rest_wave
-			g_f = [float(find_line(   pc[g_tcom_i-1][0], g_wl_i/(float(pc[g_tcom_i-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
-			g_weighted_wl = sum([g_f_i * g_wl_i for g_f_i, g_wl_i in zip(g_f, g_wl)]) / sum(g_f)
-			axes.plot([g_weighted_wl, g_weighted_wl], y0y1, color=tcol)
-			axes.text(g_weighted_wl, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
-		else:
-			gwl_min, gwl_max = min(g_wl), max(g_wl)
-			axes.fill([gwl_min, gwl_max, gwl_max, gwl_min], y0y1, color=tcol, alpha=0.6)
-			axes.text((gwl_min+gwl_max)/2.0, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
-
-def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, ttype, weighted = False):
+def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, tv = None, weighted = False):
 	groupdelta = settings['group_delta']
 	ingroups, notgroups = groupStructure(twl, tcom, tsp, pc, groupdelta)
 	if notgroups:
 		ng_wl = [ng[0] for ng in notgroups]
 		ng_tcom = [ng[1] for ng in notgroups]
 		ng_tsp = [ng[2] for ng in notgroups]
-		drawTicks(ng_wl, ng_tcom, ng_tsp, pc, axes, config, settings, ttype)
+		drawTicks(ng_wl, ng_tcom, ng_tsp, pc, axes, config, settings, y0y1, ytxt, tv = tv)
 	if ingroups:
-			drawGroups(ingroups, pc, axes, config, settings, ttype, weighted)
+			drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, tv = tv, weighted = weighted)
+
+def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, tv = None, weighted = False):
+	if not weighted:
+		y0y1 = [y0y1[0], y0y1[0], y0y1[1], y0y1[1]]
+	for group in ingroups:
+		g_wl = [g[0] for g in group]
+		g_tcom = [g[1] for g in group]
+		g_tsp = [g[2] for g in group]
+		tcol = assignCompColor(pc, g_tcom[0]-1, config)
+		g_restwl = find_line(pc[g_tcom[0]-1][0], g_wl[0]/(float(pc[g_tcom[0]-1][4])+1.0))['wv']
+		wv_obs = g_restwl*(float(pc[g_tcom[0]-1][4])+1.0)
+		if weighted:
+			#                         species               approx_rest_wave (maybe just replace with g_restwl)
+			g_f = [float(find_line(   pc[g_tcom_i-1][0], g_wl_i/(float(pc[g_tcom_i-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
+			g_weighted_wl = sum([g_f_i * g_wl_i for g_f_i, g_wl_i in zip(g_f, g_wl)]) / sum(g_f)
+			if tv:
+				# calculate velocity of weighted component
+				g_weighted_x = [(g_wl_i-wv_obs)/wv_obs*C/1000.0 for g_wl_i in g_weighted_wl] 
+			else:
+				g_weighted_x = g_weighted_wl
+			axes.plot([g_weighted_x, g_weighted_x], y0y1, color=tcol)
+			if ytxt:
+				axes.text(g_weighted_x, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
+		else:
+			gwl_min, gwl_max = min(g_wl), max(g_wl)
+			if tv:
+				gx_min, gx_max = (gwl_min-wv_obs)/wv_obs*C/1000.0, (gwl_max-wv_obs)/wv_obs*C/1000.0
+			else:
+				gx_min, gx_max = gwl_min, gwl_max
+			axes.fill([gx_min, gx_max, gx_max, gx_min], y0y1, color=tcol, alpha=0.6)
+			if ytxt:
+				axes.text((gx_min+gx_max)/2.0, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
 
 def hideXLabels(axes):
 	""" http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg06932.html """

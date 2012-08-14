@@ -161,12 +161,7 @@ def parse_atom():
 	return atomlst
 
 def find_line(species, approx_rest_wave):
-	atom = parse_atom()
-	
-	atom_sub_sp = [a for a in atom if a['ion'] == species]
-	if not atom_sub_sp:
-		raise Exception("Could not find line matching '%s %s' (no ion match) in atom.dat file" % (species, approx_rest_wave))
-	
+	atom_sub_sp = find_lines_byspecies(species)
 	deltawv = 9999999.0
 	dwv_i = None
 	for i, a in enumerate(atom_sub_sp):
@@ -176,3 +171,11 @@ def find_line(species, approx_rest_wave):
 			dwv_i = i
 	
 	return atom_sub_sp[dwv_i]
+
+def find_lines_byspecies(species):
+	atom = parse_atom()
+	atom_sub_sp = [a for a in atom if a['ion'] == species]
+	if not atom_sub_sp:
+		raise Exception("Could not find line matching '%s %s' (no ion match) in atom.dat file" % (species, approx_rest_wave))
+	
+	return atom_sub_sp
