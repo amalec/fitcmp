@@ -918,7 +918,7 @@ def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, tv = None, weig
 			g_weighted_wl = sum([g_f_i * g_wl_i for g_f_i, g_wl_i in zip(g_f, g_wl)]) / sum(g_f)
 			if tv:
 				# calculate velocity of weighted component
-				g_weighted_x = [(g_wl_i-wv_obs)/wv_obs*C/1000.0 for g_wl_i in g_weighted_wl] 
+				g_weighted_x = (g_weighted_wl-wv_obs)/wv_obs*C/1000.0
 			else:
 				g_weighted_x = g_weighted_wl
 			axes.plot([g_weighted_x, g_weighted_x], y0y1, color=tcol)
