@@ -911,7 +911,7 @@ def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, tv = None, weig
 		g_tsp = [g[2] for g in group]
 		tcol = assignCompColor(pc, g_tcom[0]-1, config)
 		g_restwl = find_line(pc[g_tcom[0]-1][0], g_wl[0]/(float(pc[g_tcom[0]-1][4])+1.0))['wv']
-		wv_obs = g_restwl*(float(pc[g_tcom[0]-1][4])+1.0)
+		wv_obs = float(g_restwl)*(float(pc[g_tcom[0]-1][4])+1.0)
 		if weighted:
 			#                         species               approx_rest_wave (maybe just replace with g_restwl)
 			g_f = [float(find_line(   pc[g_tcom_i-1][0], g_wl_i/(float(pc[g_tcom_i-1][4])+1.0)   )['f']) for g_tcom_i, g_wl_i in zip(g_tcom, g_wl)]
