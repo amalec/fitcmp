@@ -11,13 +11,14 @@ from optparse import OptionParser
 from matplotlib import use as useGUI
 useGUI('TkAgg')
 
+from vpstuff.vphelper import show_error, termBold, termWarn
 from vpstuff.vpcmp import *
 from vpstuff.vpeval import vpeval
 from vpstuff.termcon import TerminalController, ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
-VERSION = 0.89
+VERSION = 0.90
 
 term = TerminalController()
 
@@ -35,56 +36,54 @@ def main():
 	
 	(options, args) = parser.parse_args()
 	if args == []:
-		print "No VPFIT executable path argument.\nNote: -v, --vpfit-path flag has been removed.\nA valid VPFIT executable path must now always be specified as an argument."
-		parser.print_help()
-		sys.exit()
+		show_error("No VPFIT executable path argument.\nNote: -v, --vpfit-path flag has been removed.\nA valid VPFIT executable path must now always be specified as an argument.\nSee --help for information.", True)
 	
-    # vppath, oldf, newf, vpfix1 = args[0], options.oldf, options.newf, options.vpfix1
+	# vppath, oldf, newf, vpfix1 = args[0], options.oldf, options.newf, options.vpfix1
 	vppath, oldf, newf, vpfix1, nf = args[0], options.oldf, options.newf, False, options.nonfancy
 	
-	def vpfix(n): # strange way of doing it, but may be handy later on, or alternatively I'll rewrite the fort.17 functions to automatically detect the vpfit version
+	def vpfix(n): # clean this up
 		if n == 1:
 			return vpfix1
 	
 	if not os.path.isfile(vppath):
-		print "VPFIT executable: %s NOT FOUND" % vppath
-		sys.exit()
+		show_error("VPFIT executable: %s NOT FOUND" % vppath, True)
 	if not os.path.isfile(newf):
-		print "New fort.13 file: %s NOT FOUND" % newf
-		sys.exit()
+		show_error("New fort.13 file: %s NOT FOUND" % newf, True)
 	if not oldf:
 		oldf = newf
 	if not os.path.isfile(oldf):
-		print "Old fort.13 file: %s NOT FOUND" % newf
-		sys.exit()
+		show_error("Old fort.13 file: %s NOT FOUND" % newf, True)
 	
-	rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix, nonfancy = nf)
-	
-	colour_config, tick_config = readColourConfig(scriptpath + '/colours.cfg')
-	
-	settings = {'plot_type': 1, 'flux_bottom': 1, 'tick_type': 1, 'group_delta': 0.07,
-	            'tick_label': 1, 'plot_width': 650, 'plot_height': 490, 'vplot_width': 640, 'vplot_height': 1040,
-	            'vel_res': 1, 'crs_display': 1}
-	
-	# from: http://docs.python.org/library/readline.html
-	histfile = os.path.join(os.path.expanduser("~"), ".f13cmphist")
 	try:
-	    readline.read_history_file(histfile)
-	except IOError:
-	    pass
-	import atexit
-	atexit.register(readline.write_history_file, histfile)
-	#
-	
-	print "Available fitting regions:"
-	
-	listRegions(rftList_new)
-	print
-	selHelp()
-	print
-	fids = [[1, 1]] # Plot figure ID and fit ID
-	
-	showPlot(rftList_old[fids[-1][1]-1], rftList_new[fids[-1][1]-1], c_old, c_new, colour_config, tick_config, settings, figureid = fids[-1][0])
+		rftList_old, c_old, rftList_new, c_new = readAllf17(oldf, newf, vppath, vpfix, nonfancy = nf)
+		
+		colour_config, tick_config = readColourConfig(scriptpath + '/colours.cfg')
+		
+		settings = {'plot_type': 1, 'flux_bottom': 1, 'tick_type': 1, 'group_delta': 0.07,
+		            'tick_label': 1, 'plot_width': 650, 'plot_height': 490, 'vplot_width': 640, 'vplot_height': 1040,
+		            'vel_res': 1, 'crs_display': 1}
+		
+		# from: http://docs.python.org/library/readline.html
+		histfile = os.path.join(os.path.expanduser("~"), ".f13cmphist")
+		try:
+		    readline.read_history_file(histfile)
+		except IOError:
+		    pass
+		import atexit
+		atexit.register(readline.write_history_file, histfile)
+		#
+		
+		print "Available fitting regions:"
+		
+		listRegions(rftList_new)
+		print
+		selHelp()
+		print
+		fids = [[1, 1]] # Plot figure ID and fit ID
+		
+		showPlot(rftList_old[fids[-1][1]-1], rftList_new[fids[-1][1]-1], c_old, c_new, colour_config, tick_config, settings, figureid = fids[-1][0])
+	except Exception as e:
+		show_error(e, True)
 	
 	while True:
 		try:
@@ -361,6 +360,8 @@ def main():
 					sys.exit()
 				elif s == '' or s == 'n':
 					break
+		except Exception as e:
+			show_error(e)
 
 def showMultiPlots(fidlist, rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, show = True, saveFile = ''):
 	for fid in fidlist:
@@ -460,12 +461,6 @@ def readAllf17(oldf, newf, vppath, vpfix, nonfancy = False):
 		print term.render('${GREEN}${BOLD}Retrieving data for all fits...${NORMAL}')
 	
 	return rftList_old, c_old, rftList_new, c_new
-
-def termBold(msg):
-	return term.render('${BOLD}%s${NORMAL}') %msg
-	
-def termWarn(msg):
-	return term.render('${YELLOW}%s${NORMAL}') %msg
 
 def selOptionHelp():
 	print "Available options and settings:"

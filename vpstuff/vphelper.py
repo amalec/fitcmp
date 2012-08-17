@@ -1,5 +1,36 @@
 from math import log
-import os, re
+import os, re, traceback, sys
+from vpstuff.termcon import TerminalController, ProgressWrapper
+from time import gmtime, strftime
+term = TerminalController()
+
+ERROR_LOG_FN = 'error.fitcmp.log'
+
+def termBold(msg):
+	return term.render('${BOLD}%s${NORMAL}') %msg
+	
+def termWarn(msg):
+	return term.render('${YELLOW}%s${NORMAL}') %msg
+
+def show_error(msg, exit = False):
+	print term.render('${RED}${BOLD}Error: ${NORMAL} %s' % msg)
+	exc_type, exc_value, exc_traceback = sys.exc_info()
+	infomsg = ''
+	if exc_type:
+		infomsg = 'Additional debugging information is available - written to %s' % ERROR_LOG_FN
+		lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+		debugmsg = ''.join('   ' + line for line in lines) 
+	if exit:
+		infomsg = 'Exiting. ' + infomsg
+	print infomsg
+	
+	error_log = open(ERROR_LOG_FN, 'a+')
+	error_log.write('[%s] Error: %s\n\n' % (strftime("%Y-%m-%d %H:%M:%S", gmtime()), msg))
+	if exc_type:
+		error_log.write(debugmsg+'\n')
+	if exit:
+		error_log.write('Exiting.\n\n')
+		sys.exit()
 
 def isNotString(thestring, stringlist):
 	for thisstring in stringlist:

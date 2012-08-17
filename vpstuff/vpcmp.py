@@ -10,7 +10,7 @@ from vpstuff.constants import C
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.widgets import MultiCursor
 from matplotlib import rcParams
-from vpstuff.vphelper import find_line, find_lines_byspecies
+from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBold, termWarn
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -62,6 +62,8 @@ def readFort13(filename, pr = None):
 	regionList = []; cmpList = []
 	for line in lines:
 		dat = line.split()
+		if line.strip() == '':
+			raise fort13FormatError()
 		if (dat[0][0] == COMMENT_MARKER): continue # ! at start of line
 		if (dat[0] == SEP_MARKER):
 			if (mode == NO_MODE):
@@ -301,8 +303,7 @@ def readColourConfig(config_file):
 	# TODO: check config file for errors
 	config = RawConfigParser()
 	if not isfile(config_file):
-		print "Could not open colour config file = %s" % config_file
-		return
+		show_error("Could not open colour config file = %s" % config_file, True)
 	config.read(config_file)
 	colour_config = {}
 	tick_config = []
@@ -400,7 +401,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		found_lines = temp_fl
 		
 		if len(found_lines) == 0:
-			print "No lines with label '' found in current regions" % tiedz_lbl
+			print "No lines with label '%s' found in current regions" % tiedz_lbl
 			return
 		
 		#######################################################
@@ -497,7 +498,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 			p.close()
 		else:
 			p.ioff()
-			print "[Close display window to continue]"
+			print termWarn("[Close display window to continue]")
 			p.show()
 			p.ion()
 	else:
