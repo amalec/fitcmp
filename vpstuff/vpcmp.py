@@ -10,7 +10,8 @@ from vpstuff.constants import C
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.widgets import MultiCursor
 from matplotlib import rcParams
-from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBold, termWarn
+from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBold, termWarn, term
+from vpstuff.pyvpfit import *
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -932,7 +933,6 @@ def drawTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, fline = No
 		if fline:
 			wv_obs = float(fline[2]['wv'])*(fline[1]+1.0)
 			tx_i = (wl-wv_obs)/wv_obs*C/1000.0
-			# print tx_i
 		else:
 			tx_i = wl
 		axes.plot([tx_i, tx_i], y0y1, color=tcol)
@@ -991,3 +991,88 @@ def onlySpaces(astring): # not very brilliant but works - ... seriously, what do
 	r = ''
 	for l in line:	r += l + ' '
 	return r
+
+########
+
+def deltacolor(i, fit, labelkey, valkey = None):
+	iiter = len(fit['fitprogress'])-1
+	fl = fit['fitprogress'][-1]['lines'][i]
+	if fl[labelkey].upper() == fl[labelkey] and fl[labelkey] != '':
+		return '${BOLD}${BLACK}'
+	else:
+		if not valkey or iiter == 0:
+			return '${WHITE}'
+		else:
+			if fit['fitprogress'][-1]['try'] == fit['fitprogress'][-2]['try']:
+				delta = float(fit['fitprogress'][-1]['lines'][i][valkey])-float(fit['fitprogress'][-2]['lines'][i][valkey])
+				if delta < 0.0:
+					return '${CYAN}'
+				elif delta > 0.0:
+					return '${YELLOW}'
+				else:
+					return '${WHITE}'
+			else:
+				return '${WHITE}'
+	
+
+def iterprint(fit, enditer):
+	iiter = len(fit['fitprogress'])-1
+	
+	
+	if iiter == 0:
+		print term.render('Fitting file ${BOLD}%s${NORMAL} with ${BOLD}%s${NORMAL} region%s and ${BOLD}%s${NORMAL} ion%s...' 
+			% (fit['f13path'], fit['nregions'], ('s','')[int(fit['nregions']) == 1], fit['nions'], ('s','')[int(fit['nions']) == 1]),)
+		print
+		print term.render('${BG_BLACK}   ion          N            z             b         x4           bturb   temp             ${NORMAL}')
+		print
+		chi2delta = ''
+	else:
+		chi2delta = ' (%.4f)' % (float(fit['fitprogress'][-1]['chi2'])-float(fit['fitprogress'][-2]['chi2']))
+	
+	print term.render(' iter ${BOLD}%s${NORMAL} | try %s${BOLD}%s${NORMAL} | total ${BOLD}%i${NORMAL}                chi^2/v = ${BOLD}%s${NORMAL} = ${BOLD}%s${NORMAL}%s / ${BOLD}%s${NORMAL}'
+		% (fit['fitprogress'][-1]['iter'], ('', '${YELLOW}')[int(fit['fitprogress'][-1]['try']) > 1], fit['fitprogress'][-1]['try'], iiter,
+		fit['fitprogress'][-1]['chi2v'], fit['fitprogress'][-1]['chi2'], chi2delta, fit['fitprogress'][-1]['v']))
+	
+	for i, l in enumerate(fit['fitprogress'][-1]['lines']):
+		print term.render('${BG_BLACK}   %s %s%s${NORMAL}${BG_BLACK}%s%s${NORMAL}${BG_BLACK} %s%s${NORMAL}${BG_BLACK}%s%s${NORMAL}${BG_BLACK} %s%s${NORMAL}${BG_BLACK}%s%s${NORMAL}${BG_BLACK} %s%s${NORMAL}${BG_BLACK}%s%s${NORMAL}${BG_BLACK} %s%s${NORMAL}${BG_BLACK} %s%s${NORMAL}${BG_BLACK} %s ${BOLD}${BLACK}%s${NORMAL}'
+			% (l['ion'].ljust(8), deltacolor(i, fit, 'Nlbl', 'N'), l['N'].rjust(8), deltacolor(i, fit, 'Nlbl'), l['Nlbl'].ljust(2),
+			deltacolor(i, fit, 'zlbl', 'z'), l['z'].rjust(11), deltacolor(i, fit, 'zlbl'), l['zlbl'].ljust(2),
+			deltacolor(i, fit, 'blbl', 'b'), l['b'].rjust(9), deltacolor(i, fit, 'blbl'), l['blbl'].ljust(2),
+			deltacolor(i, fit, 'x4lbl', 'x4'), l['x4'].rjust(9), deltacolor(i, fit, 'x4lbl'), l['x4lbl'].ljust(2),
+			deltacolor(i, fit, 'blbl', 'bturb'), l['bturb'].rjust(9),
+			deltacolor(i, fit, 'blbl', 'temp'), l['temp'].rjust(10),
+			l['region'].rjust(2),
+			l['cmid']))
+	print
+	
+	if fit['fitprogress'][-1]['msg'] != '':
+		for ml in fit['fitprogress'][-1]['msg'].split('\n'):
+			if ml.strip() != '': print term.render('${BG_BLACK}${MAGENTA}%s${NORMAL}' % (ml.ljust(92)))
+		print
+	
+	if enditer:
+		print term.render('${BG_GREEN}${BLACK}'+'-- Fitting complete! --'.center(92)+'${NORMAL}')
+		print
+		print ' Parameter errors:'
+		for il in fit['finalstats']['err'].split('\n'):
+			if il.strip() != '': print term.render('${BG_BLACK}${WHITE}%s${NORMAL}') % (il.ljust(92))
+		print
+		print ' Fit statistics:'
+		for il in fit['finalstats']['fitstats'].split('\n'):
+			print term.render('${BG_BLACK}${WHITE}%s${NORMAL}') % (il.ljust(92))
+		print
+		print ' Region statistics:'
+		for il in fit['finalstats']['regstats'].split('\n'):
+			print term.render('${BG_BLACK}${WHITE}%s${NORMAL}') % (il.ljust(92))
+		print
+
+def prettyfit(vpfit_path, fort13, nvar, bvar, zvar, x4var, csvar):
+	try:
+		vpf = VPFIT(vpfit_path)
+		vpf.fit(f13path = fort13,
+			n = nvar, b = bvar, z = zvar, x4 = x4var, cs = csvar,
+			itercallback = iterprint)
+	except KeyboardInterrupt:
+		print term.render('${BG_BLACK}${RED}'+'-- Terminating --'.center(92)+'${NORMAL}')
+	
+	return

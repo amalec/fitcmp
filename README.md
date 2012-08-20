@@ -26,7 +26,7 @@ SOFTWARE.
 # NOTE
 
 I've used some bits and pieces of code from the Internet. I've indicated where
-and have included the URL.
+and have included the URL. I use Pexpect Copyright (c) 2008 Noah Spurrier.
 
 # ABOUT
 

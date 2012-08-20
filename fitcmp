@@ -11,16 +11,14 @@ from optparse import OptionParser
 from matplotlib import use as useGUI
 useGUI('TkAgg')
 
-from vpstuff.vphelper import show_error, termBold, termWarn
+from vpstuff.vphelper import show_error, termBold, termWarn, term
 from vpstuff.vpcmp import *
 from vpstuff.vpeval import vpeval
-from vpstuff.termcon import TerminalController, ProgressWrapper
+from vpstuff.termcon import ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
 VERSION = 0.90
-
-term = TerminalController()
 
 def main():
 	scriptpath = os.path.dirname(sys.argv[0])
@@ -183,6 +181,23 @@ def main():
 					exportAll(s[4:], rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings, ext = 'pdf')
 				elif s == 'f13':
 					printf13Paths(oldf, newf)
+				elif s[0] == 'f':
+					elt = "([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)" # E float
+					s0p, s1p = "[\s^\n]*", "[\s^\n]+"                # white space
+					singleopt = lambda c: '(/[\s^\n]*%s[\s^\n]*=[\s^\n]*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)[\s^\n]*)?' % c
+					csopt = '(/[\s^\n]*cs[\s^\n]*=[\s^\n]*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)[\s^\n]*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)[\s^\n]*([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)[\s^\n]*)?$'
+					fcmd = re.findall('f[\s^\n]*'+singleopt('n')+singleopt('b')+singleopt('z')+singleopt('x4')+csopt, s)
+					varprintout = None
+					nvar, bvar, zvar, x4var, csvar = '', '', '', '', ''
+					if fcmd:
+						nvar, bvar, zvar, x4var, csvar = fcmd[0][1], fcmd[0][4], fcmd[0][7], fcmd[0][10], fcmd[0][13]+' '+fcmd[0][15]+' '+fcmd[0][17]
+						varprintout = ', '.join([istr + ivar for istr, ivar in zip(['n = ', 'b = ', 'z = ', 'x4 = ', 'cs = '], [nvar, bvar, zvar, x4var, csvar]) if ivar.strip()])
+					if varprintout:
+						print "Fitting using parameters %s ..." % varprintout
+					else:
+						print "Fitting..."
+					print termWarn('[Use Ctrl+C to exit fitting mode]')
+					prettyfit(vppath, newf, nvar, bvar, zvar, x4var, csvar)
 				elif s[0] == 'r':
 					reloadmultifigs = True
 					if len(s) == 1:
@@ -507,6 +522,8 @@ def selHelp():
 	print termBold(" /<f>") + "                         vmin/max are opt, sp is a comma-delimited subset of species,"
 	print                "                              <f> is an optional outputfile, ext. determines filetype; no display"
 	print termBold(" e/expr") + "                     - Evaluates expression, atom.dat lookup using e.g. {H I 1215}"
+	print termBold(" f/n=<v>/b=<v>/z=<v>/x4=<v>") + " - Uses VPFIT (version 10 only) to fit new fort.13 file. n, b, z, x4"
+	print termBold(" /cs=<v> <v> <v>") + "              and cs are each optional VPFIT parameters (but must be in order)"
 	print termBold(" (e)ps/<f>") + "                  - Output all displays to sequentially named <f>_n.[e]ps files"
 	print termBold(" pdf/<f>") + "                    - Output all displays to sequentially named <f>_n.pdf files"
 	print termBold(" f13") + "                        - Prints the paths of the fort.13 files in use"
