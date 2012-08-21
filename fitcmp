@@ -7,6 +7,7 @@
 
 import sys, os, readline, re
 from optparse import OptionParser
+from tempfile import NamedTemporaryFile
 
 from matplotlib import use as useGUI
 useGUI('TkAgg')
@@ -18,7 +19,7 @@ from vpstuff.termcon import ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
-VERSION = 0.90
+VERSION = 0.95
 
 def main():
 	scriptpath = os.path.dirname(sys.argv[0])
@@ -82,6 +83,28 @@ def main():
 		showPlot(rftList_old[fids[-1][1]-1], rftList_new[fids[-1][1]-1], c_old, c_new, colour_config, tick_config, settings, figureid = fids[-1][0])
 	except Exception as e:
 		show_error(e, True)
+		
+	def livefit_callback(fit, enditer):
+		iterprint(fit, enditer)
+		tempf13 = NamedTemporaryFile(prefix = 'fort.13', dir = './')
+		tempf13.write('   *\n')
+		for rft in rftList_new:
+			tempf13.write(rft[RFT_R][R_L])
+		tempf13.write('   *\n')
+		for i, l in enumerate(fit['fitprogress'][-1]['lines']):
+			tempf13.write('   %s %s%s %s%s %s%s %s%s %s %s %s %s\n'
+				% (l['ion'].ljust(8), l['N'].rjust(8), l['Nlbl'].ljust(2),
+				l['z'].rjust(11), l['zlbl'].ljust(2),
+				l['b'].rjust(9), l['blbl'].ljust(2),
+				l['x4'].rjust(9), l['x4lbl'].ljust(2),
+				l['bturb'].rjust(9),
+				l['temp'].rjust(10),
+				l['region'].rjust(2),
+				l['cmid']))
+		tempf13.flush()
+		rftList_live, c_live = reloadAllFits(os.path.basename(tempf13.name), rftList_new, vppath, vpfix, silent = True)
+		tempf13.close()
+		showMultiPlots(fids, rftList_old, rftList_live, c_old, c_live, colour_config, tick_config, settings, live = True)
 	
 	while True:
 		try:
@@ -197,7 +220,8 @@ def main():
 					else:
 						print "Fitting..."
 					print termWarn('[Use Ctrl+C to exit fitting mode]')
-					prettyfit(vppath, newf, nvar, bvar, zvar, x4var, csvar)
+					
+					livefit(vppath, newf, nvar, bvar, zvar, x4var, csvar, livefit_callback) ########### livefit
 				elif s[0] == 'r':
 					reloadmultifigs = True
 					if len(s) == 1:
@@ -378,9 +402,9 @@ def main():
 		except Exception as e:
 			show_error(e)
 
-def showMultiPlots(fidlist, rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, show = True, saveFile = ''):
+def showMultiPlots(fidlist, rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, show = True, saveFile = '', live = False):
 	for fid in fidlist:
-		showPlot(rft_old[fid[1]-1], rft_new[fid[1]-1], comp_old, comp_new, colour_config, tick_config, settings, fid[0], show, saveFile)
+		showPlot(rft_old[fid[1]-1], rft_new[fid[1]-1], comp_old, comp_new, colour_config, tick_config, settings, fid[0], show, saveFile, live)
 
 def exportAll(fname, rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings, ext = 'ps'):
 	print "--- Exporting %s files" % ext

@@ -24,11 +24,12 @@ RE_NL     = '\r\n' # VPFIT prints these for newlines
 
 class VPFIT(object):
 	ITER_TIMEOUT = 1*60*60 # seconds
-	vpf_version = None
-	setup = {}
-	fit_data = {'fitprogress': [], 'finalstats': {}}
 	
 	def __init__(self, vpf_path):
+		self.vpf_version = None
+		self.setup = {}
+		self.fit_data = {'fitprogress': [], 'finalstats': {}}
+		
 		self.vpf_path = vpf_path
 		self.vpf = spawn(vpf_path)
 		# self.vpf.logfile = sys.stdout #DEBUG
@@ -46,7 +47,6 @@ class VPFIT(object):
 		
 		self.vpf.expect(RE_W0+'Using data from : (?P<atom>.+?)')
 		self.setup.update(self.vpf.match.groupdict())
-		
 		
 	def fit(self, f13path = 'fort.13', itercallback = None, **kwargs):
 		self.fit_data['f13path'] = f13path

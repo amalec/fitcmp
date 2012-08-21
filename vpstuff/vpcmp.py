@@ -590,7 +590,7 @@ def velocityPlot(ax, data, pc, fline, colour_config, tick_config, settings):
 	# 	ax.yaxis.set_major_formatter(FormatStrFormatter("%0.1f"))
 	ax.yaxis.set_minor_formatter(NullFormatter())
 
-def plotData(rft_old, rft_new, axes, settings, colour_config):
+def plotData(rft_old, rft_new, axes, settings, colour_config, live):
 	wlbin, datbin = rft2Data(rft_new, F_WL, F_DATA, settings['plot_type'] <= 2)
 	wldat_old, fitdat_old = rft2Data(rft_old, F_WL, F_FIT, settings['plot_type'] == 2)
 	wldat_new, fitdat_new = rft2Data(rft_new, F_WL, F_FIT, settings['plot_type'] == 2)
@@ -610,7 +610,11 @@ def plotData(rft_old, rft_new, axes, settings, colour_config):
 	else:
 		axes.plot(wlbin, datbin, color=colour_config['data'])
 	axes.plot(wldat_old, fitdat_old, color=colour_config['fit_old'], linestyle = '--')
-	axes.plot(wldat_new, fitdat_new, color=colour_config['fit_new'])
+	if live:
+		new_color = colour_config['fit_live']
+	else:
+		new_color = colour_config['fit_new']
+	axes.plot(wldat_new, fitdat_new, color=new_color)
 
 	# set view bounds
 	daxis = axes.axis() # xmin, xmax, ymin, ymax
@@ -649,7 +653,7 @@ def plotData(rft_old, rft_new, axes, settings, colour_config):
 		for label in labels:
 		    label.set_rotation(90)
 
-def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, figureid = 1, show = True, saveFile = ''):
+def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, figureid = 1, show = True, saveFile = '', live = False):
 	assert(len(rft_old) == len(rft_new))
 	pdpi = rcParams['figure.dpi']
 	fig = p.figure(figureid, figsize=(float(settings['plot_width'])/pdpi, float(settings['plot_height'])/pdpi))
@@ -711,14 +715,14 @@ def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, s
 	axMiddle.yaxis.set_major_formatter(NullFormatter())
 	axMiddle.yaxis.set_major_locator(NullLocator())
 	hideXLabels(axMiddle)
-
+	
 	axLower.xaxis.set_major_locator(MaxNLocator(10))
 	axLower.xaxis.set_minor_locator(MaxNLocator(100))
 	axLower.xaxis.set_major_formatter(FormatStrFormatter('%0.2f'))
 
 	plotResidual(rft_old, rft_new, axUpper, colour_config)
 	plotTicks(rft_old, rft_new, comp_old, comp_new, axMiddle, settings, tick_config)
-	plotData(rft_old, rft_new, axLower, settings, colour_config)
+	plotData(rft_old, rft_new, axLower, settings, colour_config, live)
 	
 	if (show): 
 		# p.show()
@@ -727,11 +731,11 @@ def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, s
 	if (saveFile != ''): p.savefig(saveFile, orientation='landscape')
 
 def calcResidual(data, fit, error):
-    if error > 0.0:
-        r = (data-fit)/error
-    else:
-        r = NaN
-    return r
+	if error > 0.0:
+		r = (data-fit)/error
+	else:
+		r = NaN
+	return r
 
 def residualDat(rft):
 	datdat = fExtract(rft, F_DATA)
@@ -1018,7 +1022,6 @@ def deltacolor(i, fit, labelkey, valkey = None):
 def iterprint(fit, enditer):
 	iiter = len(fit['fitprogress'])-1
 	
-	
 	if iiter == 0:
 		print term.render('Fitting file ${BOLD}%s${NORMAL} with ${BOLD}%s${NORMAL} region%s and ${BOLD}%s${NORMAL} ion%s...' 
 			% (fit['f13path'], fit['nregions'], ('s','')[int(fit['nregions']) == 1], fit['nions'], ('s','')[int(fit['nions']) == 1]),)
@@ -1066,13 +1069,14 @@ def iterprint(fit, enditer):
 			print term.render('${BG_BLACK}${WHITE}%s${NORMAL}') % (il.ljust(92))
 		print
 
-def prettyfit(vpfit_path, fort13, nvar, bvar, zvar, x4var, csvar):
+def livefit(vpfit_path, fort13, nvar, bvar, zvar, x4var, csvar, itercb):
 	try:
 		vpf = VPFIT(vpfit_path)
 		vpf.fit(f13path = fort13,
 			n = nvar, b = bvar, z = zvar, x4 = x4var, cs = csvar,
-			itercallback = iterprint)
+			itercallback = itercb)
 	except KeyboardInterrupt:
 		print term.render('${BG_BLACK}${RED}'+'-- Terminating --'.center(92)+'${NORMAL}')
+		del vpf
 	
 	return
