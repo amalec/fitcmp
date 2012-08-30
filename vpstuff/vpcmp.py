@@ -1,6 +1,7 @@
 from numpy import *
 import pylab as p
 import os, re
+from math import log, sqrt
 from string import strip
 from matplotlib.ticker import *
 from os.path import dirname, abspath, isfile
@@ -315,6 +316,14 @@ def readColourConfig(config_file):
 		colour_config[col[0]] = col[1]
 	return colour_config, tick_config
 
+def Nb_estimate(norm_flux, delta_v, f, lam_0):
+	# From J. Whitmore
+	# delta_v is between the two successive clicks
+	x = 1.52e-5
+	N = log( (-log(norm_flux)*delta_v) / (f*lam_0*x), 10)
+	b = delta_v / (2.0*sqrt(2.0*log(2.0)))
+	return N, b
+
 # TODO: Maybe eventually support stacked common-velocity display
 def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings, splist, vlow = None, vhigh = None, cursor_on = False, saveFile = None):
 	if settings['crs_display'] == 1:
@@ -356,7 +365,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 					group = []
 					for i in range(1, len(gfl)):
 						separation = float(gfl[i][2]['wv'])-float(gfl[i-1][2]['wv']) # abs is omitted here to make the algorithm exclude filling the result arrays with duplicates
-
+						
 						if separation + septotal <= groupdelta:
 							if not newgroup: newgroup = True
 							septotal += separation
@@ -414,6 +423,52 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		
 		fig, ax = p.subplots(len(found_lines)+addplot, 1, sharex=True, figsize=(float(settings['vplot_width'])/pdpi, float(settings['vplot_height'])/pdpi)) #default: 8*80, 13*80
 		fig.canvas.set_window_title(crsplus + 'Velocity stack')
+		
+		class TwoClick:
+			def __init__(self, figure, settings):
+				self.second_click = False
+				self.figure = figure
+				self.cid_onclick = self.figure.canvas.mpl_connect('button_press_event', self.onclick)
+				self.settings = settings
+				self.clicks = {'x1': None, 'y1': None, 'x2': None, 'y2': None}
+			
+			def onclick(self, event):
+				try:
+					if event.button == 3: # right click
+						fl_indx = event.inaxes.get_geometry()[2]-2 # based on subplot id
+						if self.settings['crs_display'] != 1:
+							fl_indx += 1
+						
+						if event.ydata <= 0.0 or event.ydata >= 1.0:
+							return
+						
+						if not self.second_click:
+							self.clicks['x1'], self.clicks['y1'] = event.xdata, event.ydata
+						else:
+							self.clicks['x2'], self.clicks['y2'] = event.xdata, event.ydata
+						
+						if self.second_click:
+							# do the calc
+							norm_flux = self.clicks['y1']
+							delta_v = abs(self.clicks['x1']-self.clicks['x2'])
+							if not delta_v <= 0.0:
+								f = float(found_lines[fl_indx][2]['f'])
+								lam_0 = float(found_lines[fl_indx][2]['wv'])*1.0e-10 # in metres
+								wv_obs0 = float(found_lines[fl_indx][2]['wv'])*(float(found_lines[fl_indx][1])+1.0)
+								wv_obs = self.clicks['x1']/C*1000.0*wv_obs0+wv_obs0
+								z = wv_obs/float(found_lines[fl_indx][2]['wv'])-1.0
+								N, b = Nb_estimate(norm_flux, delta_v, f, lam_0)
+								print "   %s %s   %s   %s       0.000SE      0.00   0.00E+00  0  !     " % (found_lines[fl_indx][0].ljust(8), ("%.5f" % N).rjust(8), ("%.7f" % z).rjust(11), ("%.4f" % b).rjust(9))
+							else:
+								self.second_click = False
+								return
+								
+						self.second_click = not self.second_click
+						# 
+				except TypeError:
+					pass
+		
+		tc = TwoClick(fig, settings)
 		
 		vall = []
 		
@@ -589,6 +644,7 @@ def velocityPlot(ax, data, pc, fline, colour_config, tick_config, settings):
 	# else:
 	# 	ax.yaxis.set_major_formatter(FormatStrFormatter("%0.1f"))
 	ax.yaxis.set_minor_formatter(NullFormatter())
+	
 
 def plotData(rft_old, rft_new, axes, settings, colour_config, live):
 	wlbin, datbin = rft2Data(rft_new, F_WL, F_DATA, settings['plot_type'] <= 2)
