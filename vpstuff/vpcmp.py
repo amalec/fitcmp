@@ -468,7 +468,23 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 				except TypeError:
 					pass
 		
+		class KeyAction:
+			def __init__(self, figure):
+				self.figure = figure
+				self.cid_onrelease = self.figure.canvas.mpl_connect('key_release_event', self.onrelease)
+			
+			def onrelease(self, event):
+				if event.key == ',':
+					print "Setting left bound to %.2f" % event.xdata
+					self.figure.get_axes()[-1].set_xlim(left=event.xdata)
+					self.figure.canvas.draw()
+				if event.key == '.':
+					print "Setting right bound to %.2f" % event.xdata
+					self.figure.get_axes()[-1].set_xlim(right=event.xdata)
+					self.figure.canvas.draw()
+		
 		tc = TwoClick(fig, settings)
+		ka = KeyAction(fig)
 		
 		vall = []
 		
@@ -555,6 +571,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		else:
 			p.ioff()
 			print termWarn("[Close display window to continue]")
+			print "Select left and right bounds using <,> and <.> keys"
 			p.show()
 			p.ion()
 	else:
