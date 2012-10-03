@@ -19,7 +19,7 @@ from vpstuff.termcon import ProgressWrapper
 from string import ljust, strip, lower
 from matplotlib.pyplot import ion, close
 
-VERSION = 0.95
+VERSION = 0.96
 
 def main():
 	scriptpath = os.path.dirname(sys.argv[0])
@@ -58,9 +58,9 @@ def main():
 		
 		colour_config, tick_config = readColourConfig(scriptpath + '/colours.cfg')
 		
-		settings = {'plot_type': 1, 'flux_bottom': 1, 'tick_type': 1, 'group_delta': 0.07,
+		settings = {'vppath': vppath, 'plot_type': 1, 'flux_bottom': 1, 'tick_type': 1, 'group_delta': 0.07,
 		            'tick_label': 1, 'plot_width': 650, 'plot_height': 490, 'vplot_width': 640, 'vplot_height': 1040,
-		            'vel_res': 1, 'crs_display': 1}
+		            'vel_res': 1, 'crs_display': 1, 'decompose_fit': 1, 'decomp_thresh': 0.999}
 		
 		# from: http://docs.python.org/library/readline.html
 		histfile = os.path.join(os.path.expanduser("~"), ".f13cmphist")
@@ -375,6 +375,24 @@ def main():
 								print "Invalid setting for crs_display option"
 								continue
 							settings['crs_display'] = opt_value
+						elif opt_name == 'decompose_fit' or opt_name == 'df':
+							try:
+								opt_value = int(opt_value)
+								if opt_value < 1 or opt_value > 3 or opt_value == None:
+									raise ValueError
+							except ValueError:
+								print "Invalid setting for decompose_fit option"
+								continue
+							settings['decompose_fit'] = opt_value
+							showMultiPlots(fids, rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings)
+						elif opt_name == 'decomp_thresh' or opt_name == 'dt':
+							try:
+								opt_value = float(opt_value)
+							except ValueError:
+								print "Invalid setting for decomp_thresh option"
+								continue
+							settings['decompose_fit'] = opt_value
+							showMultiPlots(fids, rftList_old, rftList_new, c_old, c_new, colour_config, tick_config, settings)
 						else:
 							selOptionHelp()
 					else:
@@ -526,6 +544,10 @@ def selOptionHelp():
 	print          "                    2              display individual residuals"
 	print          " crs_display (cd)   1*             show CRS in velicity stack plot"
 	print          "                    2              turn off CRS"
+	print          " decompose_fit (df) 1*             do not decompose fit"
+	print          "                    2              plot individual fit components (new)"
+	print          "                    3              plot individual fit components (old)"
+	print          " decomp_thresh (dt) 0.999          upper threshold for plotting decomposed lines"
 	print          " * = default setting"
 
 def selHelp():

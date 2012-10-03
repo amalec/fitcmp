@@ -13,6 +13,7 @@ from matplotlib.widgets import MultiCursor
 from matplotlib import rcParams
 from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBold, termWarn, term
 from vpstuff.pyvpfit import *
+from tempfile import NamedTemporaryFile
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -663,32 +664,7 @@ def velocityPlot(ax, data, pc, fline, colour_config, tick_config, settings):
 	ax.yaxis.set_minor_formatter(NullFormatter())
 	
 
-def plotData(rft_old, rft_new, axes, settings, colour_config, live):
-	wlbin, datbin = rft2Data(rft_new, F_WL, F_DATA, settings['plot_type'] <= 2)
-	wldat_old, fitdat_old = rft2Data(rft_old, F_WL, F_FIT, settings['plot_type'] == 2)
-	wldat_new, fitdat_new = rft2Data(rft_new, F_WL, F_FIT, settings['plot_type'] == 2)
-	daterr = fExtract(rft_new, F_ERR)
-	# wldat_old = fExtract(rft_old, F_WLL)
-	# wldat_new = fExtract(rft_new, F_WL)
-	# fitdat_old = fExtract(rft_old, F_FIT)
-	# fitdat_new = fExtract(rft_new, F_FIT)
-	
-	axes.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
-	axes.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
-	
-	if settings['plot_type'] == 4:
-		axes.errorbar(wlbin, datbin, yerr=daterr, color=colour_config['data'], fmt=None)
-	elif settings['plot_type'] == 5:
-		axes.fill_between(wlbin, [d-e for d, e in zip(datbin, daterr)], y2 = [d+e for d, e in zip(datbin, daterr)], lw=0.0, color=colour_config['data_contour'])
-	else:
-		axes.plot(wlbin, datbin, color=colour_config['data'])
-	axes.plot(wldat_old, fitdat_old, color=colour_config['fit_old'], linestyle = '--')
-	if live:
-		new_color = colour_config['fit_live']
-	else:
-		new_color = colour_config['fit_new']
-	axes.plot(wldat_new, fitdat_new, color=new_color)
-
+def setPlotBounds(axes, settings, fitdat_old, fitdat_new, datbin, wlbin):
 	# set view bounds
 	daxis = axes.axis() # xmin, xmax, ymin, ymax
 	ymax = daxis[3]
@@ -720,6 +696,90 @@ def plotData(rft_old, rft_new, axes, settings, colour_config, live):
 	xmin = min(wlbin)
 
 	axes.axis([xmin, xmax, ymin, ymax])
+
+def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config, live):
+	wlbin, datbin = rft2Data(rft_new, F_WL, F_DATA, settings['plot_type'] <= 2)
+	wldat_old, fitdat_old = rft2Data(rft_old, F_WL, F_FIT, settings['plot_type'] == 2)
+	wldat_new, fitdat_new = rft2Data(rft_new, F_WL, F_FIT, settings['plot_type'] == 2)
+	daterr = fExtract(rft_new, F_ERR)
+	# wldat_old = fExtract(rft_old, F_WLL)
+	# wldat_new = fExtract(rft_new, F_WL)
+	# fitdat_old = fExtract(rft_old, F_FIT)
+	# fitdat_new = fExtract(rft_new, F_FIT)
+	
+	axes.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
+	axes.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
+	
+	if settings['plot_type'] == 4:
+		axes.errorbar(wlbin, datbin, yerr=daterr, color=colour_config['data'], fmt=None)
+	elif settings['plot_type'] == 5:
+		axes.fill_between(wlbin, [d-e for d, e in zip(datbin, daterr)], y2 = [d+e for d, e in zip(datbin, daterr)], lw=0.0, color=colour_config['data_contour'])
+	else:
+		axes.plot(wlbin, datbin, color=colour_config['data'])
+	
+	new_color = colour_config['fit_new']
+	if live: new_color = colour_config['fit_live']
+	
+	df = settings['decompose_fit']
+	if df > 1:
+		if df == 2:
+			comp = comp_new
+			rft = rft_new
+		if df == 3:
+			comp = comp_old
+			rft = rft_old
+		pc = parseComps(comp)
+		rlc = rft[RFT_R][R_L]
+		rwl = rft[RFT_R][R_WL]
+		rwh = rft[RFT_R][R_WH]
+		twl = tExtract(rft, T_WL)
+		tcom = tExtract(rft, T_COM)
+		tcom_unique = uniqueList(tcom)
+		
+		# space reserved for some component info pre-processing (e.g. for summed column density lines and tied parameters)
+		# ...
+		
+		# remove lines not falling in the current region
+		pc = [c for c in pc if c[16]+1 in tcom_unique]
+		# remove misc lines 
+		pc = [c for c in pc if c[0] not in ['<<', '>>', '<>', '__']]
+		
+		# retrieve fit data
+		decomp_fits = []
+		for pci in pc:
+			tempf13 = NamedTemporaryFile(prefix = 'fort.13', dir = './')
+			tempf13.write('   *\n')
+			tempf13.write(rlc)
+			tempf13.write('   *\n')
+			tempf13.write(pci[17]) #linecopy of component
+			tempf13.flush()
+			rftf = vpf17ReadAll(os.path.basename(tempf13.name), settings['vppath'], 1, None, regionid = 1)[0][0] # essentially RFT_F
+			fiti, wli = [di[F_FIT] for di in rftf if di[F_FIT] < settings['decomp_thresh']], [di[F_WL] for di in rftf if di[F_FIT] < settings['decomp_thresh']] # quick and dirty, might not work well for regions with continuum adjustments - though these have been pruned out, so it will be fine
+			decomp_fits.append([wli, fiti]) # note swap
+			tempf13.close()
+		
+		# 
+		# R_WL, R_WH, R_L = 0, 1, 2 # Fit region: low wavelength bound, high wavelength bound, line copy
+		# C_NAME, C_L = 0, 1 # Fit components: ion name, line copy
+		# F_WL, F_DATA, F_ERR, F_FIT = 0, 1, 2, 3 # Output fit: wavelength, data, error, fit data
+		# T_WL, T_SPEC, T_COM = 0, 1, 2 # Tick marks: wavelength, species no. (not reliable/random in vpfit10), component no.
+		# RFT_R, RFT_F, RFT_T = 0, 1, 2 # RFT: Region, Fit, Tick marks
+		# # species0, N1,lbl2,small3, z4,lbl5,small6, b7,lbl8,small9, e10,lbl11,small12, bturb13, temp14, rgnflg15, id16, linecopy17
+		# pci = [p0[0], p0[1], p0[2]+p0[3], p0[2] != '', p0[4], p0[5]+p0[6], p0[5] != '', p0[7], p0[8]+p0[9], p0[8] != '', p0[10], p0[11]+p0[12], p0[11] != '', p0[13], p0[14], p0[16], i, c[C_L]]
+		
+	if df == 3:
+		for fi in decomp_fits:
+			axes.plot(fi[0], fi[1], color=colour_config['fit_old'], linestyle = '--')
+	else:
+		axes.plot(wldat_old, fitdat_old, color=colour_config['fit_old'], linestyle = '--')
+		
+	if df == 2:
+		for fi in decomp_fits:
+			axes.plot(fi[0], fi[1], color=new_color)
+	else:
+		axes.plot(wldat_new, fitdat_new, color=new_color)
+	
+	setPlotBounds(axes, settings, fitdat_old, fitdat_new, datbin, wlbin)
 	
 	if settings['flux_bottom'] == 2 or settings['flux_bottom'] == 3:
 		labels = axes.get_yticklabels()
@@ -795,7 +855,7 @@ def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, s
 
 	plotResidual(rft_old, rft_new, axUpper, colour_config)
 	plotTicks(rft_old, rft_new, comp_old, comp_new, axMiddle, settings, tick_config)
-	plotData(rft_old, rft_new, axLower, settings, colour_config, live)
+	plotData(rft_old, rft_new, comp_old, comp_new, axLower, settings, colour_config, live)
 	
 	if (show): 
 		# p.show()
