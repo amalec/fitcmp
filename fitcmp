@@ -5,7 +5,7 @@
 # WARNING: All the fitting regions in each file must correspond.
 # WARNING: I started writing this code when I commenced my PhD, it is terrible. Good luck. (I've been slowly refactoring the code though...)
 
-VERSION = 0.97
+VERSION = 0.98
 
 import sys, os, readline, re
 from optparse import OptionParser
@@ -13,34 +13,37 @@ from tempfile import NamedTemporaryFile
 
 from matplotlib import use as useGUI
 
-scriptpath = os.path.dirname(sys.argv[0])
-
-usage = "Usage: %prog [options] <vpfit executable path>"
-ver = "%prog " + str(VERSION)
-parser = OptionParser(usage=usage, version=ver)
-parser.add_option("-o", "--oldf13", dest="oldf", help="Old fort.13 file (optional)", default=False)
-parser.add_option("-n", "--newf13", dest="newf", help="New fort.13 file (fort.13 by default)", default="fort.13")
-parser.add_option("--scriptmode", dest="scriptmode", action="store_true", default=False, help="Disable visuals and windows")
-
-(options, args) = parser.parse_args()
-if args == []:
-	show_error("No VPFIT executable path argument.\nNote: -v, --vpfit-path flag has been removed.\nA valid VPFIT executable path must now always be specified as an argument.\nSee --help for information.", True)
-
-vppath, oldf, newf, vpfix1, sm = args[0], options.oldf, options.newf, False, options.scriptmode
-
-if not sm:
-	useGUI('TkAgg')
-else:
-	useGUI('Agg')
-
 from vpstuff.vpcmp import *
 from vpstuff.vphelper import show_error, termBold, termWarn, term
 from vpstuff.vpeval import vpeval
 from vpstuff.termcon import ProgressWrapper
-from string import ljust, strip, lower
-from matplotlib.pyplot import ion, close
 
-ion() # turn on matplotlib interactive mode
+if __name__ == "__main__":
+
+	scriptpath = os.path.dirname(sys.argv[0])
+
+	usage = "Usage: %prog [options] <vpfit executable path>"
+	ver = "%prog " + str(VERSION)
+	parser = OptionParser(usage=usage, version=ver)
+	parser.add_option("-o", "--oldf13", dest="oldf", help="Old fort.13 file (optional)", default=False)
+	parser.add_option("-n", "--newf13", dest="newf", help="New fort.13 file (fort.13 by default)", default="fort.13")
+	parser.add_option("--scriptmode", dest="scriptmode", action="store_true", default=False, help="Disable visuals and windows")
+
+	(options, args) = parser.parse_args()
+	if args == []:
+		show_error("No VPFIT executable path argument.\nNote: -v, --vpfit-path flag has been removed.\nA valid VPFIT executable path must now always be specified as an argument.\nSee --help for information.", True)
+
+	vppath, oldf, newf, vpfix1, sm = args[0], options.oldf, options.newf, False, options.scriptmode
+
+	if not sm:
+		useGUI('TkAgg')
+	else:
+		useGUI('Agg')
+
+	from string import ljust, strip, lower
+	from matplotlib.pyplot import ion, close
+
+	ion() # turn on matplotlib interactive mode
 
 def main():
 	global vppath, oldf, newf, vpfix1, sm
@@ -141,7 +144,7 @@ def main():
 							print termWarn("[Exiting autoreload mode]")
 							break
 				elif s[0] == 'v':
-					vcmd = re.findall("v(n|o)[\s^\n]*/[\s^\n]*(([a-zA-Z]{1,2})([\s^\n]*-[\s^\n]*([a-zA-Z0-9\s^\n,]+))?)([\s^\n]*/[\s^\n]*([+-]?[0-9]*\.?[0-9]+)[\s^\n]*,[\s^\n]*([+-]?[0-9]*\.?[0-9]+))?[\s^\n]*([\s^\n]*/[\s^\n]*([\\.a-zA-Z0-9_-]+))?[\s^\n]*", s)
+					vcmd = re.findall("v(n|o)[\s^\n]*/[\s^\n]*(([a-zA-Z0-9.]+)([\s^\n]*-[\s^\n]*([a-zA-Z0-9\s^\n,]+))?)([\s^\n]*/[\s^\n]*([+-]?[0-9]*\.?[0-9]+)[\s^\n]*,[\s^\n]*([+-]?[0-9]*\.?[0-9]+))?[\s^\n]*([\s^\n]*/[\s^\n]*([\\.a-zA-Z0-9_-]+))?[\s^\n]*", s)
 					if len(vcmd) == 0:
 						print "Invalid 'v' command"
 						continue
@@ -571,7 +574,9 @@ def selHelp():
 	print termBold(" a[n,o]") + "                     - Autoreload mode for new/old fort.13, current region"
 	print termBold(" v[n,o]/lbl[-sp,]/vmin,vmax") + " - Velocity stack plot around the lines with label lbl,"
 	print termBold(" /<f>") + "                         vmin/max are opt, sp is a comma-delimited subset of species,"
-	print                "                              <f> is an optional outputfile, ext. determines filetype; no display"
+	print                "                              <f> is an optional outputfile, ext. determines filetype; no display."
+	print                "                              lbl can be a redshift value instead if prefixed with 'red'"
+	print                "                              species option is highly recommended; e.g. red1.0225828-MgI"
 	print termBold(" e/expr") + "                     - Evaluates expression, atom.dat lookup using e.g. {H I 1215}"
 	print termBold(" f/n=<v>/b=<v>/z=<v>/x4=<v>") + " - Uses VPFIT (version 10 only) to fit new fort.13 file. n, b, z, x4"
 	print termBold(" /cs=<v> <v> <v>") + "              and cs are each optional VPFIT parameters (but must be in order)"

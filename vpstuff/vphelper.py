@@ -210,3 +210,10 @@ def find_lines_byspecies(species):
 		raise Exception("Could not find line matching '%s %s' (no ion match) in atom.dat file" % (species, approx_rest_wave))
 	
 	return atom_sub_sp
+
+def RepresentsInt(s):
+	try: 
+		int(s)
+		return True
+	except ValueError:
+		return False

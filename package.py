@@ -1,5 +1,6 @@
 import imp
 fc = open('./fitcmp')
+
 fitcmp = imp.load_source('fitcmp', './fitcmp')
 VERSION = fitcmp.VERSION
 

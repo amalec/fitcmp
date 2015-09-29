@@ -11,9 +11,10 @@ from vpstuff.constants import C
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.widgets import MultiCursor
 from matplotlib import rcParams
-from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBold, termWarn, term
+from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBold, termWarn, term, RepresentsInt
 from vpstuff.pyvpfit import *
 from tempfile import NamedTemporaryFile
+from operator import itemgetter
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -337,12 +338,24 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 	pc = parseComps(comp)
 	sel_comps = []
 	
-	for pci in pc:
-		lbl = pci[5]
-		species = pci[0]
-		if lbl.lower() == tiedz_lbl.lower() and (species in splist or splist == []):
-			redshift = float(pci[4])
-			sel_comps.append([species, redshift])
+	if tiedz_lbl[:3].lower() == 'red':
+		redshift = float(tiedz_lbl[3:])
+		for sp in splist:
+			sel_comps.append([sp, redshift])
+	else:
+	
+		for i, pci in enumerate(pc):
+			lbl = pci[5]
+			species = pci[0]
+			if lbl.lower() == tiedz_lbl.lower() and (species in splist or splist == []):
+				redshift = float(pci[4])
+				sel_comps.append([species, redshift])
+			if RepresentsInt(tiedz_lbl):
+				if int(tiedz_lbl) == i+1 and (species in splist or splist == []):
+					redshift = float(pci[4])
+					sel_comps.append([species, redshift])
+			print species
+			
 	
 	found_lines = []
 	if sel_comps:
@@ -408,8 +421,10 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 			for fl in found_lines:
 				wv_obs = float(fl[2]['wv'])*(fl[1]+1.0)
 				if wv_obs <= rft[RFT_R][R_WH] and wv_obs >= rft[RFT_R][R_WL]:
+				# if wv_obs <= rft[RFT_R][R_WH]+10.0 and wv_obs >= rft[RFT_R][R_WL]-10.0:
 					temp_fl.append([fl[0], fl[1], fl[2], rindx]) # 0 species, 1 redshift, 2 rest wavelength, 3 region index
-		found_lines = temp_fl
+		found_lines = sorted(temp_fl, key=itemgetter(2))
+		
 		
 		if len(found_lines) == 0:
 			print "No lines with label '%s' found in current regions" % tiedz_lbl
