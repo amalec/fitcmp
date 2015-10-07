@@ -712,6 +712,58 @@ def setPlotBounds(axes, settings, fitdat_old, fitdat_new, datbin, wlbin):
 
 	axes.axis([xmin, xmax, ymin, ymax])
 
+def dumpFits(fname, rftList, comps):
+	pc = parseComps(comps)
+	# print pc
+	#['CrII', '13.00818', '', False, '2.3090528', 'ac', True, '3.9817', 'ac', True, '-0.069', '', False, 'QA', '0.00', 'E+00', 1, '   CrII     13.00818    2.3090528ac   3.9817ac   -0.069QA     0.00  1.00E+00  0 ! 2\n']
+	# species0, N1,lbl2,small3, z4,lbl5,small6, b7,lbl8,small9, e10,lbl11,small12, bturb13, temp14, rgnflg15, id16, linecopy17
+	for i, rft in enumerate(rftList):
+		wldat = fExtract(rft, F_WL)
+		fitdat = fExtract(rft, F_FIT)
+		errdat = fExtract(rft, F_ERR)
+		datdat = fExtract(rft, F_DATA)
+		rlc = rft[RFT_R][R_L]
+		
+		assert(len(wldat) == len(fitdat) == len(errdat) == len(datdat))
+		
+		f = open("%s_%i.fit.dat" % (fname, i+1),'w')
+		
+		f.write("# " + rlc.strip() + "\n")
+		f.write("# wl\tdata\tfit\terror\n")
+
+		for j in range(len(wldat)):
+			f.write("%s\t%s\t%s\t%s\n" % (wldat[j], fitdat[j], errdat[j], datdat[j]))
+		
+		f.close()
+		
+		
+		twl = tExtract(rft, T_WL)
+		tcom = tExtract(rft, T_COM)
+		tsp = tExtract(rft, T_SPEC)
+		
+		assert(len(twl) == len(tcom) == len(tsp))
+		
+		f = open("%s_%i.comp.dat" % (fname, i+1),'w')
+		
+		f.write("# wl\tline no\tspecies\tN\tNlbl\tz\tzlbl\tb\tblbl\n")
+		
+		for j in range(len(twl)):
+			ti = tcom[j]-1
+			f.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (twl[j], tcom[j], pc[ti][0], pc[ti][1], pc[ti][2], pc[ti][4], pc[ti][5], pc[ti][7], pc[ti][8]))
+			
+		f.close()
+		
+		# print twl, tcom, tsp
+		# [6836.9024, 6837.04517, 6837.20158, 6837.31171, 6837.59291, 6837.94271] [1, 2, 3, 4, 5, 6] [1, 1, 1, 1, 1, 1]
+		
+		
+		
+		
+		
+		
+		
+
+
 def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config, live):
 	wlbin, datbin = rft2Data(rft_new, F_WL, F_DATA, settings['plot_type'] <= 2)
 	wldat_old, fitdat_old = rft2Data(rft_old, F_WL, F_FIT, settings['plot_type'] == 2)
