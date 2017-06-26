@@ -949,12 +949,13 @@ def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config
 	if df == 3:
 		for counter, fi in enumerate(decomp_fits):
 			axes.plot(fi[0], fi[1], color=colour_config['fit_old'], linestyle = '--')
-			packet = {
-				'wlbin': fi[0],
-				'decomp_fit': fi[1]
-			}
-			dd_fpart = "%04i" % (counter+1)
-			dd_writer(packet, dd_fpart+'.decompfit.old')
+			if len(fi[0]) > 0:
+				packet = {
+					'wlbin': fi[0],
+					'decomp_fit': fi[1]
+				}
+				dd_fpart = "%04i" % (counter+1)
+				dd_writer(packet, dd_fpart+'.decompfit.old')
 	else:
 		axes.plot(wldat_old, fitdat_old, color=colour_config['fit_old'], linestyle = '--')
 		packet = {
@@ -966,12 +967,17 @@ def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config
 	if df == 2:
 		for counter, fi in enumerate(decomp_fits):
 			axes.plot(fi[0], fi[1], color=new_color)
-			packet = {
-				'wlbin': fi[0],
-				'decomp_fit': fi[1]
-			}
-			dd_fpart = "%04i" % (counter+1)
-			dd_writer(packet, dd_fpart+'.decompfit.new')
+			if len(fi[0]) > 0:
+				packet = {
+					'wlbin': fi[0],
+					'decomp_fit': fi[1]
+				}
+				# print 'wlbin'
+				# print fi[0]
+				# print 'decomp_fit'
+				# print fi[1]
+				dd_fpart = "%04i" % (counter+1)
+				dd_writer(packet, dd_fpart+'.decompfit.new')
 	else:
 		axes.plot(wldat_new, fitdat_new, color=new_color)
 		packet = {
