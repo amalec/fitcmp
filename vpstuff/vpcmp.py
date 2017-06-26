@@ -953,7 +953,7 @@ def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config
 				'wlbin': fi[0],
 				'decomp_fit': fi[1]
 			}
-			dd_fpart = "%04i" % counter+1
+			dd_fpart = "%04i" % (counter+1)
 			dd_writer(packet, dd_fpart+'.decompfit.old')
 	else:
 		axes.plot(wldat_old, fitdat_old, color=colour_config['fit_old'], linestyle = '--')
@@ -970,7 +970,7 @@ def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config
 				'wlbin': fi[0],
 				'decomp_fit': fi[1]
 			}
-			dd_fpart = "%04i" % counter+1
+			dd_fpart = "%04i" % (counter+1)
 			dd_writer(packet, dd_fpart+'.decompfit.new')
 	else:
 		axes.plot(wldat_new, fitdat_new, color=new_color)
