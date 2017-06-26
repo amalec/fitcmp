@@ -5,7 +5,7 @@
 # WARNING: All the fitting regions in each file must correspond.
 # WARNING: I started writing this code when I commenced my PhD, it is terrible. Good luck. (I've been slowly refactoring the code though...)
 
-VERSION = 0.99
+VERSION = 1.00
 
 import sys, os, readline, re
 from optparse import OptionParser
@@ -17,6 +17,8 @@ from vpstuff.vpcmp import *
 from vpstuff.vphelper import show_error, termBold, termWarn, term
 from vpstuff.vpeval import vpeval
 from vpstuff.termcon import ProgressWrapper
+
+import vpstuff.fcs as fcs
 
 if __name__ == "__main__":
 
@@ -231,10 +233,25 @@ def main():
 					
 					livefit(vppath, newf, nvar, bvar, zvar, x4var, csvar, livefit_callback) ########### livefit
 				elif s[0] == 'd':
+					sddpref = 'ddprefix/'
 					if s[:3] == 'dn/':
 						dumpFits(s[3:],rftList_new, c_new)
 					elif s[:3] == 'do/':
 						dumpFits(s[3:],rftList_old, c_old)
+					elif s[:3] == 'dd/':
+						if s[3:5] == 'on':
+							fcs.dd = True
+							fcs.dd_test = False
+							print "Data dump mode ON"
+						if s[3:6] == 'off':
+							fcs.dd = False
+							print "Data dump mode OFF"
+						if s[3:7] == 'test':
+							fcs.dd = True
+							fcs.dd_test = True
+							print "Data dump mode TEST"
+					elif s[:len(sddpref)] == sddpref:
+						fcs.dd_prefix = s[len(sddpref):].strip()
 					else:
 						print "Invalid data dump command"
 						continue
@@ -592,6 +609,8 @@ def selHelp():
 	print termBold(" pdf/<f>") + "                    - Output all displays to sequentially named <f>_n.pdf files"
 	print termBold(" f13") + "                        - Prints the paths of the fort.13 files in use"
 	print termBold(" d[n,o]/<f>") + "                 - Dump data files (for plots, analysis, etc) for new/old fort.13 file"
+	print termBold(" dd/on") + "                      - Complete plot data dump mode on or 'off', use 'test' to screen dump"
+	print termBold(" ddprefix/<f>") + "               - Set data dump file prefix (carefully, it overwrites); dd_default"
 	print termBold(" {option,setting}") + "           - Set option. Use {} to see available options"
 	print termBold(" ?") + "                          - Show this message"
 	print termBold(" q") + "                          - Quit immediately"

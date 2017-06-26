@@ -15,6 +15,8 @@ from vpstuff.vphelper import find_line, find_lines_byspecies, show_error, termBo
 from vpstuff.pyvpfit import *
 from tempfile import NamedTemporaryFile
 from operator import itemgetter
+import vpstuff.fcs as fcs
+import asciitable, sys
 
 #TODO: Add a feature that counts the number of lines in both new and old regions, and prints a warning if there is a differecne
 
@@ -354,7 +356,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 				if int(tiedz_lbl) == i+1 and (species in splist or splist == []):
 					redshift = float(pci[4])
 					sel_comps.append([species, redshift])
-			print species
+			# print species
 			
 	
 	found_lines = []
@@ -423,7 +425,7 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 				if wv_obs <= rft[RFT_R][R_WH] and wv_obs >= rft[RFT_R][R_WL]:
 				# if wv_obs <= rft[RFT_R][R_WH]+10.0 and wv_obs >= rft[RFT_R][R_WL]-10.0:
 					temp_fl.append([fl[0], fl[1], fl[2], rindx]) # 0 species, 1 redshift, 2 rest wavelength, 3 region index
-		found_lines = sorted(temp_fl, key=itemgetter(2))
+		found_lines = sorted(temp_fl, key=itemgetter(3)) # used to be 2, 3 works better
 		
 		
 		if len(found_lines) == 0:
@@ -523,7 +525,22 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 			tv = [(w-wv_obs)/wv_obs*C/1000.0 for w in twl] # in km/s
 			vdelta = abs(vel_raw[0]-vel_raw[1])
 			
-			vdata = {'vel_raw': vel_raw, 'dat_raw': dat_raw, 'fitdat_raw': fitdat_raw, 'vbin': vbin, 'vdat': vdat, 'tv': tv, 'datbin': datbin, 'daterr': daterr, 'fitdat': fitdat, 'twl': twl, 'tcom': tcom, 'tsp': tsp, 'vdelta': vdelta}
+			vdata = {
+				'vel_raw': vel_raw, 
+				'dat_raw': dat_raw, 
+				'fitdat_raw': fitdat_raw, 
+				'vbin': vbin, 
+				'vdat': vdat, 
+				'tv': tv, 
+				'datbin': datbin, 
+				'daterr': daterr, 
+				'fitdat': fitdat, 
+				'twl': twl, 
+				'tcom': tcom, 
+				'tsp': tsp, 
+				'vdelta': vdelta
+				# 'ylabel': "%s_%i" % (fl[0], int(float(fl[2]['wv']))),
+			}
 			vall.append(vdata)
 			velocityPlot(ax[i+addplot], vdata, pc, fl, colour_config, tick_config, settings) ###### velocityPlot
 			ax[i+addplot].set_ylabel("%s %i" % (fl[0], int(float(fl[2]['wv']))), stretch='extra-condensed')
@@ -537,6 +554,10 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 		for a in ax[:1]:
 			hideXLabels(a)
 		ax[-1].set_xlabel('Velocity (km/s) [z = %.7f]' % found_lines[0][1])
+		packet = {
+			'z': [found_lines[0][1]]
+		}
+		dd_writer(packet, 'vel.z')
 		
 		if vlow != None and vhigh != None:
 			ax[-1].set_xlim(vlow, vhigh)
@@ -579,6 +600,11 @@ def showStackPlot(tiedz_lbl, rft_all, comp, colour_config, tick_config, settings
 
 			# ax[0].plot(wldat_old, res_old, c=colour_config['res_zero_one'], linestyle='--')
 			ax[0].plot(crs_vel, crs_res, c=colour_config['residual'])
+			packet = {
+				'vel': crs_vel,
+				'res': crs_res
+			}
+			dd_writer(packet, 'vel.crs')
 		
 		if saveFile:
 			print "Saving velocity stack plot to %s" % (saveFile)
@@ -600,17 +626,78 @@ def findClosest(targetVal, valList):
 	diffs = [abs(x-targetVal) for x in valList]
 	return diffs.index(min(diffs))
 
+def dd_writer(packet, fpart):
+	if fcs.dd:
+		dd_fname = "%s.%s.dat" % (fcs.dd_prefix, fpart)
+		if fcs.dd_test:
+			print "@FILENAME: " + dd_fname
+			asciitable.write(packet, sys.stdout)
+		else:
+			print "DD: " + dd_fname
+			asciitable.write(packet, dd_fname)
+
+
 def velocityPlot(ax, data, pc, fline, colour_config, tick_config, settings):
 	ax.axhline(1.0, c=colour_config['zero_one'], linestyle = ':')
 	ax.axhline(0.0, c=colour_config['zero_one'], linestyle = ':')
 	
+	dd_fpart = "%s_%.4f" % (''.join(ff for ff in fline[0] if ff.isalpha()), float(fline[2]['wv']))
+	
 	if settings['plot_type'] == 4:
 		ax.errorbar(data['vbin'], data['datbin'], yerr=data['daterr'], color=colour_config['data'], fmt=None)
+		packet = {
+			'vbin': data['vbin'],
+			'datbin': data['datbin'],
+			'daterr': data['daterr']
+		}
+		dd_writer(packet, dd_fpart+'.vel.data.errbar')
+
+			
 	elif settings['plot_type'] == 5:
-		ax.fill_between(data['vbin'], [d-e for d, e in zip(data['datbin'], data['daterr'])], y2 = [d+e for d, e in zip(data['datbin'], data['daterr'])], lw=0.0, color=colour_config['data_contour'])
+		filla = [d-e for d, e in zip(data['datbin'], data['daterr'])]
+		fillb = [d+e for d, e in zip(data['datbin'], data['daterr'])]
+		ax.fill_between(data['vbin'], filla, y2 = fillb, lw=0.0, color=colour_config['data_contour'])
+		packet = {
+			'vbin': data['vbin'],
+			'filla': filla,
+			'fillb': fillb
+		}
+		dd_writer(packet, dd_fpart+'.vel.data.contour')
 	else:
 		ax.plot(data['vbin'], data['datbin'], color=colour_config['data'])
+		packet = {
+			'vbin': data['vbin'],
+			'datbin': data['datbin']
+		}
+		dd_writer(packet, dd_fpart+'.vel.data')
+		
 	ax.plot(data['vdat'], data['fitdat'], color=colour_config['fit_new'])
+	packet = {
+		'vdat': data['vdat'],
+		'fitdat': data['fitdat']
+	}
+	dd_writer(packet, dd_fpart+'.vel.fit')
+	
+	
+	# vdata = {
+	# 	'vel_raw': vel_raw,
+	# 	'dat_raw': dat_raw,
+	# 	'fitdat_raw': fitdat_raw,
+	# 	'vbin': vbin,
+	# 	'vdat': vdat,
+	# 	'tv': tv,
+	# 	'datbin': datbin,
+	# 	'daterr': daterr,
+	# 	'fitdat': fitdat,
+	# 	'twl': twl,
+	# 	'tcom': tcom,
+	# 	'tsp': tsp,
+	# 	'vdelta': vdelta
+	# 	# 'ylabel': "%s_%i" % (fl[0], int(float(fl[2]['wv']))),
+	# }
+	# vall.append(vdata)
+	# velocityPlot(ax[i+addplot], vdata, pc, fl, colour_config, tick_config, settings) ###### velocityPlot
+	# ax[i+addplot].set_ylabel("%s %i" % (fl[0], int(float(fl[2]['wv']))), stretch='extra-condensed')
 		
 	# set view bounds
 	dax = ax.axis() # xmin, xmax, ymin, ymax
@@ -658,11 +745,11 @@ def velocityPlot(ax, data, pc, fline, colour_config, tick_config, settings):
 	ytxt = None # don't plot text labels on velocity stack plot	
 	
 	if settings['tick_type'] == 1:
-		drawTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, fline = fline)
+		drawTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, fline = fline, fpart = dd_fpart)
 	elif settings['tick_type'] == 2:
-		drawGroupedTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, fline = fline)
+		drawGroupedTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, fline = fline, fpart = dd_fpart)
 	elif settings['tick_type'] == 3:
-		drawGroupedTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, fline = fline, weighted = True)
+		drawGroupedTicks(data['twl'], data['tcom'], data['tsp'], pc, ax, tick_config, settings, y0y1, ytxt, fline = fline, weighted = True, fpart = dd_fpart)
 	
 	if settings['vel_res'] == 2:
 		ax.axhline(resy+RESIDUAL_SCALE*(ymax-ymin), c=colour_config['res_zero_one'])
@@ -670,6 +757,12 @@ def velocityPlot(ax, data, pc, fline, colour_config, tick_config, settings):
 		residual = [calcResidual(data['dat_raw'][vel_i], data['fitdat_raw'][vel_i], data['daterr'][vel_i]) for vel_i in range(len(data['daterr']))]
 		proj_res = [r*RESIDUAL_SCALE*(ymax-ymin)+resy for r in residual] # plot coordinates projected residual
 		ax.plot(data['vdat'], proj_res, c=colour_config['residual'])
+		packet = {
+			'vdat': data['vdat'],
+			'residual': residual, #included for reference
+			'proj_res': proj_res
+		}
+		dd_writer(packet, dd_fpart+'vel.res')
 	
 	ax.yaxis.set_minor_locator(FixedLocator([0.25, 0.5, 0.75]))
 	if settings['flux_bottom'] == 3:
@@ -779,10 +872,29 @@ def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config
 	
 	if settings['plot_type'] == 4:
 		axes.errorbar(wlbin, datbin, yerr=daterr, color=colour_config['data'], fmt=None)
+		packet = {
+			'wlbin': wlbin,
+			'datbin': datbin,
+			'daterr': daterr
+		}
+		dd_writer(packet, 'data.errbar')
 	elif settings['plot_type'] == 5:
-		axes.fill_between(wlbin, [d-e for d, e in zip(datbin, daterr)], y2 = [d+e for d, e in zip(datbin, daterr)], lw=0.0, color=colour_config['data_contour'])
+		filla = [d-e for d, e in zip(datbin, daterr)]
+		fillb = [d+e for d, e in zip(datbin, daterr)]
+		axes.fill_between(wlbin, filla, y2 = fillb, lw=0.0, color=colour_config['data_contour'])
+		packet = {
+			'wlbin': wlbin,
+			'filla': filla,
+			'fillb': fillb
+		}
+		dd_writer(packet, 'data.contour')
 	else:
 		axes.plot(wlbin, datbin, color=colour_config['data'])
+		packet = {
+			'wlbin': wlbin,
+			'datbin': datbin
+		}
+		dd_writer(packet, 'data')
 	
 	new_color = colour_config['fit_new']
 	if live: new_color = colour_config['fit_live']
@@ -835,23 +947,45 @@ def plotData(rft_old, rft_new, comp_old, comp_new, axes, settings, colour_config
 		# pci = [p0[0], p0[1], p0[2]+p0[3], p0[2] != '', p0[4], p0[5]+p0[6], p0[5] != '', p0[7], p0[8]+p0[9], p0[8] != '', p0[10], p0[11]+p0[12], p0[11] != '', p0[13], p0[14], p0[16], i, c[C_L]]
 		
 	if df == 3:
-		for fi in decomp_fits:
+		for counter, fi in enumerate(decomp_fits):
 			axes.plot(fi[0], fi[1], color=colour_config['fit_old'], linestyle = '--')
+			packet = {
+				'wlbin': fi[0],
+				'decomp_fit': fi[1]
+			}
+			dd_fpart = "%04i" % counter+1
+			dd_writer(packet, dd_fpart+'.decompfit.old')
 	else:
 		axes.plot(wldat_old, fitdat_old, color=colour_config['fit_old'], linestyle = '--')
+		packet = {
+			'wldat': wldat_old,
+			'fitdat': fitdat_old
+		}
+		dd_writer(packet, 'fit.old')
 		
 	if df == 2:
-		for fi in decomp_fits:
+		for counter, fi in enumerate(decomp_fits):
 			axes.plot(fi[0], fi[1], color=new_color)
+			packet = {
+				'wlbin': fi[0],
+				'decomp_fit': fi[1]
+			}
+			dd_fpart = "%04i" % counter+1
+			dd_writer(packet, dd_fpart+'.decompfit.new')
 	else:
 		axes.plot(wldat_new, fitdat_new, color=new_color)
+		packet = {
+			'wldat': wldat_new,
+			'fitdat': fitdat_new
+		}
+		dd_writer(packet, 'fit.new')
 	
 	setPlotBounds(axes, settings, fitdat_old, fitdat_new, datbin, wlbin)
 	
 	if settings['flux_bottom'] == 2 or settings['flux_bottom'] == 3:
 		labels = axes.get_yticklabels()
 		for label in labels:
-		    label.set_rotation(90)
+			label.set_rotation(90)
 
 def showPlot(rft_old, rft_new, comp_old, comp_new, colour_config, tick_config, settings, figureid = 1, show = True, saveFile = '', live = False):
 	assert(len(rft_old) == len(rft_new))
@@ -957,7 +1091,17 @@ def plotResidual(rft_old, rft_new, axes, colour_config):
 	axes.axhline(-1.0, c=colour_config['res_zero_one'])
 	
 	axes.plot(wldat_old, res_old, c=colour_config['res_zero_one'], linestyle='--')
+	packet = {
+		'wldat': wldat_old,
+		'res': res_old
+	}
+	dd_writer(packet, 'res.old')
 	axes.plot(wldat_new, res_new, c=colour_config['residual'])
+	packet = {
+		'wldat': wldat_new,
+		'res': res_new
+	}
+	dd_writer(packet, 'res.new')
 
 def uniqueList(alist):
 	"""Based on http://mail.python.org/pipermail/python-list/2000-February/025219.html """
@@ -1083,14 +1227,14 @@ def plotTicks(rft_old, rft_new, cmpList_old, cmpList_new, axes, settings, config
 	ytxt_old = 2.4
 	
 	if settings['tick_type'] == 1:
-		drawTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new)
-		drawTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old)
+		drawTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new, fpart = 'new')
+		drawTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old, fpart = 'old')
 	elif settings['tick_type'] == 2:
-		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new)
-		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old)
+		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new, fpart = 'new')
+		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old, fpart = 'old')
 	elif settings['tick_type'] == 3:
-		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new, weighted = True)
-		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old, weighted = True)
+		drawGroupedTicks(twl_new, tcom_new, tsp_new, pcn, axes, config, settings, y0y1_new, ytxt_new, weighted = True, fpart = 'new')
+		drawGroupedTicks(twl_old, tcom_old, tsp_old, pco, axes, config, settings, y0y1_old, ytxt_old, weighted = True, fpart = 'old')
 	
 	taxis = axes.axis() # xmin, xmax, ymin, ymax
 	axes.axis([taxis[0], taxis[1], 0.0, 4.5])
@@ -1131,37 +1275,72 @@ def tickText(compid, pc, settings):
 		txt = str(compid+1)
 	return txt
 
-def drawTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, fline = None):
+def drawTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, fline = None, fpart = ''):
+	dd_fpart = fpart+'.ticks'
+	packet_color = []
+	packet_tx = []
+	packet_label = []
+	packet_text = []
+	# packet_zspecies = []
+	
 	for i, wl in enumerate(twl):
 		tcol = assignCompColor(pc, tcom[i]-1, config)
+		# packet_zspecies.append(pc[tcom[i]-1][0])
+		packet_color.append(tcol)
 		if fline:
 			wv_obs = float(fline[2]['wv'])*(fline[1]+1.0)
 			tx_i = (wl-wv_obs)/wv_obs*C/1000.0
 		else:
 			tx_i = wl
+		packet_tx.append(tx_i)
 		axes.plot([tx_i, tx_i], y0y1, color=tcol)
+		tx_lbl = pc[tcom[i]-1][17].strip('\n')
+		packet_label.append('"'+tx_lbl+'"')
+		tx_txt = tickText(tcom[i]-1, pc, settings)
+		packet_text.append(tx_txt)
 		if ytxt:
-			axes.text(tx_i, ytxt, tickText(tcom[i]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[tcom[i]-1][17].strip('\n'))
+			axes.text(tx_i, ytxt, tx_txt, horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=tx_lbl)
+		
+	packet = {
+		'tx': packet_tx,
+		'zz_copy': packet_label,
+		'text': packet_text,
+		'color': packet_color
+		# 'zspecies': packet_zspecies
+	}
+	dd_writer(packet, dd_fpart)
 
-def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, fline = None, weighted = False):
+def drawGroupedTicks(twl, tcom, tsp, pc, axes, config, settings, y0y1, ytxt, fline = None, weighted = False, fpart = ''):
 	groupdelta = settings['group_delta']
 	ingroups, notgroups = groupStructure(twl, tcom, tsp, pc, groupdelta)
 	if notgroups:
 		ng_wl = [ng[0] for ng in notgroups]
 		ng_tcom = [ng[1] for ng in notgroups]
 		ng_tsp = [ng[2] for ng in notgroups]
-		drawTicks(ng_wl, ng_tcom, ng_tsp, pc, axes, config, settings, y0y1, ytxt, fline = fline)
+		drawTicks(ng_wl, ng_tcom, ng_tsp, pc, axes, config, settings, y0y1, ytxt, fline = fline, fpart = fpart+'.notgrp')
 	if ingroups:
-			drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, fline = fline, weighted = weighted)
+			drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, fline = fline, weighted = weighted, fpart = fpart+'.ingrp')
 
-def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, fline = None, weighted = False):
+def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, fline = None, weighted = False, fpart = ''):
+	dd_fpart = fpart+'.ticks'
+	
 	if not weighted:
 		y0y1 = [y0y1[0], y0y1[0], y0y1[1], y0y1[1]]
+	
+	packet_color = []
+	packet_txa = []
+	packet_txb = []
+	packet_label = []
+	packet_text = []
+	# packet_zspecies = []
+	
 	for group in ingroups:
 		g_wl = [g[0] for g in group]
 		g_tcom = [g[1] for g in group]
 		g_tsp = [g[2] for g in group]
 		tcol = assignCompColor(pc, g_tcom[0]-1, config)
+		packet_color.append(tcol)
+		# packet_zspecies.append(pc[tcom[i]-1][0])
 		if fline: wv_obs = float(fline[2]['wv'])*(fline[1]+1.0)
 		if weighted:
 			#                         species               approx_rest_wave
@@ -1173,8 +1352,17 @@ def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, fline = None, w
 			else:
 				g_weighted_x = g_weighted_wl
 			axes.plot([g_weighted_x, g_weighted_x], y0y1, color=tcol)
+			
+			tx_lbl = pc[g_tcom[0]-1][17].strip('\n')
+			packet_label.append('"'+tx_lbl+'"')
+			tx_txt = tickText(g_tcom[0]-1, pc, settings)
+			packet_text.append(tx_txt)
+			
+			packet_txa.append(g_weighted_x)
+			packet_txb.append(g_weighted_x)
+			
 			if ytxt:
-				axes.text(g_weighted_x, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
+				axes.text(g_weighted_x, ytxt, tx_txt, horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=tx_lbl)
 		else:
 			gwl_min, gwl_max = min(g_wl), max(g_wl)
 			if fline:
@@ -1182,8 +1370,27 @@ def drawGroups(ingroups, pc, axes, config, settings, y0y1, ytxt, fline = None, w
 			else:
 				gx_min, gx_max = gwl_min, gwl_max
 			axes.fill([gx_min, gx_max, gx_max, gx_min], y0y1, color=tcol, alpha=0.6)
+			
+			tx_lbl = pc[g_tcom[0]-1][17].strip('\n')
+			packet_label.append('"'+tx_lbl+'"')
+			tx_txt = tickText(g_tcom[0]-1, pc, settings)
+			packet_text.append(tx_txt)
+			
+			packet_txa.append(gx_min)
+			packet_txb.append(gx_max)
+			
 			if ytxt:
-				axes.text((gx_min+gx_max)/2.0, ytxt, tickText(g_tcom[0]-1, pc, settings), horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=pc[g_tcom[0]-1][17].strip('\n'))
+				axes.text((gx_min+gx_max)/2.0, ytxt, tx_txt, horizontalalignment='center', size = 'smaller', color=tcol, picker=2, label=tx_lbl)
+	
+	packet = {
+		'txa': packet_ta,
+		'txb': packet_tb,
+		'zz_copy': packet_label,
+		'text': packet_text,
+		'color': packet_color
+		# 'zspecies': packet_zspecies
+	}
+	dd_writer(packet, dd_fpart)
 
 def hideXLabels(axes):
 	""" http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg06932.html """

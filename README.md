@@ -40,6 +40,7 @@ The dependencies are as follows:
 * Python 2.7.2
 * matplotlib 1.1.0
 * numpy 1.6.1
+* asciitable 0.8
 
 You may be able to run the script with lower versions of these. Maybe not.
 
